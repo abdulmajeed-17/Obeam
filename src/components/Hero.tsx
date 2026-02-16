@@ -46,7 +46,7 @@ export function Hero() {
   return (
     <section
       ref={targetRef}
-      className="relative overflow-hidden flex items-center pt-12 pb-10 sm:pt-16 sm:pb-14 lg:pt-20 lg:pb-20"
+      className="relative overflow-hidden flex items-center px-5 pt-24 pb-10 sm:px-0 sm:pt-16 sm:pb-14 lg:pt-20 lg:pb-20"
       style={{ minHeight: 'min(85vh, 100dvh)' }}
     >
 
@@ -59,13 +59,14 @@ export function Hero() {
       />
 
       <div className="container-saas w-full relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-24 items-center relative">
-          {/* Text Content */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 sm:gap-12 xl:gap-24 items-center relative">
+          {/* Text Content — full width on mobile/tablet so headline isn't squeezed */}
           <motion.div
             style={{ y, opacity }}
-            className="relative z-10 text-center lg:text-left"
+            className="relative z-10 text-center xl:text-left min-w-0 pt-1 px-1 sm:px-0"
           >
 
+            <div className="w-full hidden sm:flex justify-center xl:justify-start mb-6 sm:mb-8 lg:mb-10">
             <motion.div
               initial={{
                 opacity: 0,
@@ -79,15 +80,17 @@ export function Hero() {
                 delay: 0.1,
                 duration: 0.5
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 backdrop-blur-sm border border-gold-500/20 text-forest-900 text-sm sm:text-base font-bold mb-6 sm:mb-8 lg:mb-10 shadow-sm hover:shadow-md transition-shadow cursor-default">
-              <span className="relative flex h-3 w-3">
+              className="inline-flex shrink-0 items-center gap-2 px-4 py-2 rounded-full bg-white/50 backdrop-blur-sm border border-gold-500/20 text-forest-900 text-sm sm:text-base font-bold shadow-sm hover:shadow-md transition-shadow cursor-default"
+            >
+              <span className="relative flex h-3 w-3 shrink-0">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-gold-500"></span>
               </span>
               New: Instant settlements to Ghana
             </motion.div>
+          </div>
 
-            <h1 className="mb-5 sm:mb-6 lg:mb-8" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+            <h1 className="mb-3 sm:mb-6 lg:mb-8" style={{ letterSpacing: '-0.03em', lineHeight: 1.1 }}>
               <motion.span
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -101,7 +104,7 @@ export function Hero() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
-                className="block font-medium text-[clamp(22px,5vw,52px)] sm:text-[clamp(28px,4.5vw,52px)] lg:text-[clamp(38px,4.5vw,52px)]"
+                className="block mt-1.5 sm:mt-2 font-medium text-[clamp(22px,5vw,52px)] sm:text-[clamp(28px,4.5vw,52px)] lg:text-[clamp(38px,4.5vw,52px)]"
                 style={{ color: '#5B6B62' }}
               >
                 No hidden FX. No delays.
@@ -112,7 +115,7 @@ export function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.5 }}
-              className="text-base sm:text-lg mb-2 sm:mb-3 max-w-[520px] mx-auto lg:mx-0 leading-relaxed font-medium"
+              className="text-base sm:text-lg mb-2 sm:mb-3 max-w-[520px] mx-auto xl:mx-0 leading-relaxed font-medium"
               style={{ color: '#4B5563' }}
             >
               Move money to Ghana — without delays.
@@ -140,7 +143,7 @@ export function Hero() {
                 delay: 0.6,
                 duration: 0.5
               }}
-              className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start mb-8 sm:mb-0 lg:mb-0">
+              className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center xl:justify-start mb-8 sm:mb-0 xl:mb-0">
 
               <motion.a
                 href="/signup"
@@ -175,7 +178,7 @@ export function Hero() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7, duration: 0.4 }}
-              className="mt-6 sm:mt-8 lg:mt-10 w-full flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-3"
+              className="mt-6 sm:mt-8 lg:mt-10 w-full hidden sm:flex flex-wrap items-center justify-center xl:justify-start gap-2 sm:gap-3"
             >
               {['24hr settlement', 'Transparent FX', 'CBN licensed'].map((pill) => (
                 <span
@@ -188,19 +191,19 @@ export function Hero() {
             </motion.div>
           </motion.div>
 
-          {/* Hero Graphic — balanced (card 420px), height 420px */}
+          {/* Hero Graphic — stacked on mobile/tablet, side-by-side from xl */}
           <motion.div
             style={{ scale }}
-            className="relative z-10 h-[320px] sm:h-[380px] lg:h-[420px] w-full flex items-center justify-center perspective-1000"
+            className="relative z-10 h-[280px] sm:h-[340px] xl:h-[420px] w-full min-w-0 flex items-center justify-center perspective-1000 order-2 xl:order-none"
           >
             {/* Faint African pattern — bottom right, atmospheric */}
             <div
               className="absolute inset-0 pointer-events-none opacity-[0.04] bg-african-pattern rounded-[1.75rem]"
               aria-hidden
             />
-            {/* Animated pulse behind card — live, subtle (opacity 0.06 → 0.1, 9s loop) */}
+            {/* Animated pulse behind card — lighter on small screens so it doesn't dominate */}
             <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none animate-card-pulse"
+              className="absolute inset-0 flex items-center justify-center pointer-events-none animate-card-pulse xl:opacity-100 opacity-60"
               style={{
                 background: 'radial-gradient(circle at 70% 40%, rgba(20, 92, 59, 0.85), transparent 60%)',
               }}
@@ -214,7 +217,7 @@ export function Hero() {
                 opacity: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] },
                 y: { duration: 0.4, ease: 'easeOut' },
               }}
-              className="relative z-10 w-full max-w-[420px] overflow-visible p-5 sm:p-6 lg:p-7 pb-14 sm:pb-7 rounded-[16px] sm:rounded-[18px] lg:rounded-[20px]"
+              className="relative z-10 w-full max-w-[420px] overflow-visible p-4 pb-12 sm:p-6 sm:pb-7 lg:p-7 rounded-[16px] sm:rounded-[18px] lg:rounded-[20px]"
               style={{
                 background: '#FFFFFF',
                 boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 10px 25px rgba(0,0,0,0.05)',
@@ -222,13 +225,13 @@ export function Hero() {
             >
 
               {/* Card Header */}
-              <div className="flex justify-between items-center mb-5 sm:mb-6 lg:mb-8">
+              <div className="flex justify-between items-center mb-3 sm:mb-6 lg:mb-8">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-forest-900 rounded-lg flex items-center justify-center">
                     <div className="w-2 h-4 bg-gold-500 rounded-full" />
                   </div>
                   <span className="font-bold text-lg text-forest-900">
-                    beam
+                    Obeam
                   </span>
                 </div>
                 <motion.div
@@ -245,7 +248,7 @@ export function Hero() {
               </div>
 
               {/* Balance */}
-              <div className="mb-5 sm:mb-6 lg:mb-8">
+              <div className="mb-3 sm:mb-6 lg:mb-8">
                 <p className="text-gray-500 text-xs sm:text-sm font-medium mb-1">
                   Available Balance
                 </p>
@@ -254,48 +257,48 @@ export function Hero() {
                 </h3>
               </div>
 
-              {/* Transaction List — smaller avatars on mobile */}
-              <div className="space-y-2 sm:space-y-3">
-                <div className="flex items-center justify-between p-2 sm:p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
-                  <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+              {/* Transaction List — tighter on mobile */}
+              <div className="space-y-1.5 sm:space-y-3">
+                <div className="flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-gray-100 shadow-sm">
+                  <div className="flex items-start gap-2 min-w-0">
                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-50 flex items-center justify-center text-red-600 font-bold text-xs sm:text-sm shrink-0">
                       GH
                     </div>
-                    <div className="pt-1.5 sm:pt-2">
-                      <p className="font-bold text-gray-900 text-sm leading-tight">
+                    <div className="pt-1 sm:pt-2 min-w-0">
+                      <p className="font-bold text-gray-900 text-sm leading-tight truncate">
                         Kwame Enterprises
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">Supplier Payment</p>
                     </div>
                   </div>
-                  <span className="font-bold text-gray-900 text-sm shrink-0 ml-2">- ₵ 4,500</span>
+                  <span className="font-bold text-gray-900 text-sm shrink-0 ml-1.5 sm:ml-2">- ₵ 4,500</span>
                 </div>
-                <div className="flex items-center justify-between p-2 sm:p-3 bg-white rounded-xl border border-gray-100 shadow-sm opacity-60">
-                  <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+                <div className="flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg sm:rounded-xl border border-gray-100 shadow-sm opacity-60">
+                  <div className="flex items-start gap-2 min-w-0">
                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs sm:text-sm shrink-0">
                       AB
                     </div>
-                    <div className="pt-1.5 sm:pt-2">
-                      <p className="font-bold text-gray-900 text-sm leading-tight">
+                    <div className="pt-1 sm:pt-2 min-w-0">
+                      <p className="font-bold text-gray-900 text-sm leading-tight truncate">
                         Abidjan Logistics
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">Shipping Fee</p>
                     </div>
                   </div>
-                  <span className="font-bold text-gray-900 text-sm shrink-0 ml-2">- ₣ 125,000</span>
+                  <span className="font-bold text-gray-900 text-sm shrink-0 ml-1.5 sm:ml-2">- ₣ 125,000</span>
                 </div>
               </div>
 
               {/* Action Button */}
-              <div className="mt-6">
-                <div className="w-full bg-forest-900 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-lg shadow-forest-900/20 cursor-pointer hover:bg-forest-800 transition-colors">
+              <div className="mt-4 sm:mt-6">
+                <div className="w-full bg-forest-900 h-11 sm:h-12 rounded-xl flex items-center justify-center font-bold text-white text-sm sm:text-base shadow-lg shadow-forest-900/20 cursor-pointer hover:bg-forest-800 transition-colors">
                   Send Money
                 </div>
               </div>
 
-              {/* FX badge — subtle float; on mobile sit inside card so not cut off */}
+              {/* FX badge — tighter to button on mobile */}
               <motion.div
-                className="absolute bottom-2 right-2 sm:bottom-0 sm:right-0 sm:translate-x-2 sm:translate-y-2 z-20 flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-[#0B3B2E]/95 px-2.5 py-1.5 sm:px-3 sm:py-2 shadow-lg border border-forest-800"
+                className="absolute bottom-2 right-2 sm:bottom-0 sm:right-0 sm:translate-x-2 sm:translate-y-2 z-20 flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-[#0B3B2E]/95 px-2 py-1.5 sm:px-3 sm:py-2 shadow-lg border border-forest-800"
                 animate={{ y: [0, -3, 0] }}
                 transition={{ repeat: Infinity, duration: 5, ease: 'easeInOut' }}
               >

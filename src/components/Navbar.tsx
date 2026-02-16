@@ -92,7 +92,7 @@ export function Navbar() {
                 <div className="w-3 h-5 bg-cream-50 rounded-full" />
               </motion.div>
               <span className="text-2xl font-extrabold text-forest-900 tracking-tight">
-                beam
+                Obeam
               </span>
             </a>
           </div>
