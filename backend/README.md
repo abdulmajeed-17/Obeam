@@ -39,8 +39,10 @@ NestJS + PostgreSQL API for B2B cross-border payments (Nigeria → Ghana). Doubl
    ```bash
    npm run start:dev
    ```
+   - **Railway:** From your laptop, Prisma may fail with "bad certificate format" (P1011) on Railway's *public* URL. Deploy the backend to Railway and use the Postgres service's **internal** `DATABASE_URL` (e.g. `postgres.railway.internal`) — then the API connects without TLS issues. For local dev you can use a local Postgres or Neon.
    - API: http://localhost:3000
    - Health: http://localhost:3000/health
+   - Auth: POST /auth/signup, POST /auth/login
 
 ## Project layout (to build)
 

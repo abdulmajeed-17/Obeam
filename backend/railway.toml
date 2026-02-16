@@ -1,0 +1,11 @@
+# Railway deploy config (when Root Directory = backend)
+# https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "nixpacks"
+buildCommand = "npm install && npm run build"
+
+[deploy]
+startCommand = "npm run start:prod"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10

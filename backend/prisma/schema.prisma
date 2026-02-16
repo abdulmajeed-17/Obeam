@@ -1,0 +1,185 @@
+// Obeam ledger — matches 001_initial_ledger.sql (already applied)
+// Run: npx prisma generate (no migrate; schema is applied via scripts/run-schema.js)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CurrencyCode {
+  NGN
+  GHS
+}
+
+enum BusinessStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum TransferStatus {
+  DRAFT
+  PENDING_KYB
+  PENDING_FUNDS
+  QUEUED
+  PROCESSING
+  SETTLED
+  FAILED
+  CANCELLED
+}
+
+enum AccountType {
+  CUSTOMER_WALLET
+  TREASURY
+  CLEARING
+  FEES
+  FX_REVENUE
+  PAYABLE
+}
+
+enum EntryType {
+  WALLET_TOPUP
+  WALLET_WITHDRAWAL
+  TRANSFER_CREATE
+  TRANSFER_SETTLE
+  TRANSFER_CANCEL
+  FEE_CHARGE
+  FX_CONVERSION
+}
+
+model Business {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  country    String
+  status     BusinessStatus @default(PENDING)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  users      User[]
+  counterparties Counterparty[]
+  accounts   Account[]
+  fxTrades   FxTrade[]
+  transfers  Transfer[]
+  auditLogs  AuditLog[]
+}
+
+model User {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId   String    @map("business_id") @db.Uuid
+  email        String    @unique
+  phone        String?
+  passwordHash String    @map("password_hash")
+  role         String    @default("OWNER")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  business     Business  @relation(fields: [businessId], references: [id])
+  journalEntries JournalEntry[]
+  transfers    Transfer[]
+  auditLogs    AuditLog[]
+}
+
+model Counterparty {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId String   @map("business_id") @db.Uuid
+  name       String
+  country    String
+  payoutType String   @map("payout_type")
+  payoutRef  String   @map("payout_ref")
+  createdAt  DateTime @default(now()) @map("created_at")
+  business   Business @relation(fields: [businessId], references: [id])
+  transfers  Transfer[]
+}
+
+model Account {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId  String?     @map("business_id") @db.Uuid
+  currency    CurrencyCode
+  type        AccountType
+  label       String
+  isPlatform  Boolean     @default(false) @map("is_platform")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  business    Business?   @relation(fields: [businessId], references: [id])
+  postings    Posting[]
+}
+
+model JournalEntry {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entryType     EntryType @map("entry_type")
+  currency      CurrencyCode
+  referenceType String   @map("reference_type")
+  referenceId   String   @map("reference_id") @db.Uuid
+  memo          String?
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdByUser User?    @relation(fields: [createdBy], references: [id])
+  postings      Posting[]
+}
+
+model Posting {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  entryId   String   @map("entry_id") @db.Uuid
+  accountId String   @map("account_id") @db.Uuid
+  direction String   // DEBIT | CREDIT
+  amount    BigInt
+  createdAt DateTime @default(now()) @map("created_at")
+  entry     JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account   Account  @relation(fields: [accountId], references: [id])
+}
+
+model FxRate {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  base      CurrencyCode
+  quote     CurrencyCode
+  rate      Decimal       @db.Decimal(18, 8)
+  source    String
+  asOf      DateTime      @map("as_of")
+  createdAt DateTime      @default(now()) @map("created_at")
+}
+
+model FxTrade {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId    String         @map("business_id") @db.Uuid
+  baseCurrency  CurrencyCode  @map("base_currency")
+  quoteCurrency CurrencyCode  @map("quote_currency")
+  baseAmount    BigInt        @map("base_amount")
+  quoteAmount   BigInt        @map("quote_amount")
+  rateUsed      Decimal       @map("rate_used") @db.Decimal(18, 8)
+  spreadBps     Int           @default(0) @map("spread_bps")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  business      Business      @relation(fields: [businessId], references: [id])
+  transfers     Transfer[]
+}
+
+model Transfer {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId     String         @map("business_id") @db.Uuid
+  counterpartyId String         @map("counterparty_id") @db.Uuid
+  fromCurrency   CurrencyCode   @map("from_currency")
+  toCurrency     CurrencyCode   @map("to_currency")
+  fromAmount     BigInt         @map("from_amount")
+  toAmount       BigInt         @map("to_amount")
+  feeAmount      BigInt         @default(0) @map("fee_amount")
+  status         TransferStatus @default(DRAFT)
+  fxTradeId      String?        @map("fx_trade_id") @db.Uuid
+  createdBy      String?        @map("created_by") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at")
+  business       Business      @relation(fields: [businessId], references: [id])
+  counterparty   Counterparty   @relation(fields: [counterpartyId], references: [id])
+  fxTrade        FxTrade?      @relation(fields: [fxTradeId], references: [id])
+  createdByUser  User?         @relation(fields: [createdBy], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  businessId  String?  @map("business_id") @db.Uuid
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id") @db.Uuid
+  meta        Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+  actorUser   User?    @relation(fields: [actorUserId], references: [id])
+  business    Business? @relation(fields: [businessId], references: [id])
+}
