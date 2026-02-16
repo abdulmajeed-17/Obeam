@@ -175,7 +175,7 @@ export function Hero() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7, duration: 0.4 }}
-              className="mt-6 sm:mt-8 lg:mt-10 w-full hidden sm:flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-3"
+              className="mt-6 sm:mt-8 lg:mt-10 w-full flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-3"
             >
               {['24hr settlement', 'Transparent FX', 'CBN licensed'].map((pill) => (
                 <span
