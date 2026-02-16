@@ -1,0 +1,2 @@
+# Vercel deploys the frontend only. Ignore backend so Vercel doesn't detect NestJS.
+backend
