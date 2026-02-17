@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Mail, Smartphone } from 'lucide-react';
+import { ArrowLeft, Lock, Mail, Smartphone } from 'lucide-react';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 type AuthMode = 'signup' | 'login';
 
@@ -12,7 +14,12 @@ function getInitialMode(): AuthMode {
 export function Auth() {
   const [mode, setMode] = useState<AuthMode>(getInitialMode);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [businessName, setBusinessName] = useState('');
   const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -20,12 +27,87 @@ export function Auth() {
 
   const setModeAndPath = (m: AuthMode) => {
     setMode(m);
+    setError(null);
+    setSuccess(null);
     window.history.pushState({}, '', m === 'login' ? '/login' : '/signup');
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    if (!email.trim() || !password || !businessName.trim()) {
+      setError('Email, business name, and password are required.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password, businessName: businessName.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.message || data.error || 'Signup failed.');
+        return;
+      }
+      if (data.access_token) {
+        localStorage.setItem('obeam_token', data.access_token);
+        setSuccess('Account created. Redirecting...');
+        setTimeout(() => { window.location.href = '/'; }, 1500);
+      } else {
+        setSuccess('Account created.');
+      }
+    } catch (err) {
+      setError('Network error. Check the API URL or try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    if (!email.trim() || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.message || data.error || 'Login failed.');
+        return;
+      }
+      if (data.access_token) {
+        localStorage.setItem('obeam_token', data.access_token);
+        setSuccess('Logged in. Redirecting...');
+        setTimeout(() => { window.location.href = '/'; }, 1500);
+      } else {
+        setSuccess('Logged in.');
+      }
+    } catch (err) {
+      setError('Network error. Check the API URL or try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <motion.div
       className="min-h-screen bg-forest-950 flex flex-col overflow-x-hidden"
+      style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 1.5rem)' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
@@ -37,8 +119,8 @@ export function Auth() {
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[70%] h-[40%] bg-forest-600/15 rounded-full blur-[80px]" />
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-5">
+      {/* Header — enough top padding so "Back to home" isn't clipped on mobile */}
+      <header className="relative z-10 flex items-center justify-between px-4 sm:px-6 lg:px-8 pt-6 pb-5 sm:py-5">
         <a
           href="/"
           className="flex items-center gap-2 group text-cream-100 hover:text-white transition-colors"
@@ -72,13 +154,14 @@ export function Auth() {
             <div className="relative bg-cream-50/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10 p-8 md:p-10">
               <AnimatePresence mode="wait">
                 {mode === 'signup' ? (
-                  <motion.div
+                  <motion.form
                     key="signup"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 10 }}
                     transition={{ duration: 0.25 }}
                     className="space-y-6"
+                    onSubmit={handleSignup}
                   >
                     <h1 className="text-3xl font-extrabold text-forest-950 tracking-tight">
                       Create your account
@@ -87,6 +170,32 @@ export function Auth() {
                       Start paying Ghana suppliers in 24 hours.
                       Transparent FX. Zero hidden fees.
                     </p>
+
+                    {error && (
+                      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2">
+                        {error}
+                      </p>
+                    )}
+                    {success && (
+                      <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2">
+                        {success}
+                      </p>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-forest-900 mb-2">
+                        Business name
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Your company name"
+                          value={businessName}
+                          onChange={(e) => setBusinessName(e.target.value)}
+                          className="w-full pl-4 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+                        />
+                      </div>
+                    </div>
 
                     <div>
                       <label className="block text-sm font-medium text-forest-900 mb-2">
@@ -99,6 +208,22 @@ export function Auth() {
                           placeholder="you@company.com"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-forest-900 mb-2">
+                        Password <span className="text-gray-400 font-normal">(min 8 characters)</span>
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                          type="password"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
                           className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
                         />
                       </div>
@@ -121,10 +246,11 @@ export function Auth() {
                     </div>
 
                     <button
-                      type="button"
-                      className="w-full py-4 rounded-xl bg-forest-900 text-white font-bold text-center shadow-lg shadow-forest-900/25 hover:bg-forest-800 focus:outline-none focus:ring-2 focus:ring-gold-500/50 transition-all"
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-4 rounded-xl bg-forest-900 text-white font-bold text-center shadow-lg shadow-forest-900/25 hover:bg-forest-800 focus:outline-none focus:ring-2 focus:ring-gold-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Continue
+                      {loading ? 'Creating account...' : 'Continue'}
                     </button>
 
                     <p className="text-center text-xs font-medium text-gray-400 pt-2 pb-3">
@@ -159,49 +285,73 @@ export function Auth() {
                         Log in
                       </button>
                     </p>
-                  </motion.div>
+                  </motion.form>
                 ) : (
-                  <motion.div
+                  <motion.form
                     key="login"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 10 }}
                     transition={{ duration: 0.25 }}
                     className="space-y-6"
+                    onSubmit={handleLogin}
                   >
                     <h1 className="text-3xl font-extrabold text-forest-950 tracking-tight">
                       Welcome back
                     </h1>
                     <p className="text-gray-600 text-sm leading-relaxed">
-                      Enter the email or phone number associated with your Beam account.
+                      Enter your email and password to sign in.
                     </p>
+
+                    {error && (
+                      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2">
+                        {error}
+                      </p>
+                    )}
+                    {success && (
+                      <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2">
+                        {success}
+                      </p>
+                    )}
 
                     <div>
                       <label className="block text-sm font-medium text-forest-900 mb-2">
-                        Email or phone
+                        Email
                       </label>
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input
-                          type="text"
-                          placeholder="you@company.com or +234 800 000 0000"
+                          type="email"
+                          placeholder="you@company.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-forest-900 mb-2">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                          type="password"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
                           className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
                         />
                       </div>
                     </div>
 
                     <button
-                      type="button"
-                      className="text-sm font-medium text-gold-600 hover:text-gold-500 focus:outline-none underline"
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-4 rounded-xl bg-forest-900 text-white font-bold text-center shadow-lg shadow-forest-900/25 hover:bg-forest-800 focus:outline-none focus:ring-2 focus:ring-gold-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Lost access to your email or phone?
-                    </button>
-
-                    <button
-                      type="button"
-                      className="w-full py-4 rounded-xl bg-forest-900 text-white font-bold text-center shadow-lg shadow-forest-900/25 hover:bg-forest-800 focus:outline-none focus:ring-2 focus:ring-gold-500/50 transition-all"
-                    >
-                      Continue
+                      {loading ? 'Signing in...' : 'Continue'}
                     </button>
 
                     <p className="text-center text-xs font-medium text-gray-400 pt-2 pb-3">
@@ -236,7 +386,7 @@ export function Auth() {
                         Create account
                       </button>
                     </p>
-                  </motion.div>
+                  </motion.form>
                 )}
               </AnimatePresence>
             </div>

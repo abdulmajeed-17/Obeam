@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MapPin, Users, Target, Zap } from 'lucide-react';
+import { MapPin, Users, Target, Zap } from 'lucide-react';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 
@@ -43,49 +43,39 @@ export function AboutUs() {
       <Navbar />
       
       <main>
-        {/* Hero Section — same scale as main site */}
-        <section className="relative overflow-hidden py-12 sm:py-16 lg:py-20">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#F5F1E9] via-[#F5F1E9] to-[#F5F1E9]"></div>
-          <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[70%] bg-gradient-to-br from-gold-200/40 to-gold-400/25 rounded-full blur-[120px] animate-blob mix-blend-multiply"></div>
-          <div className="absolute bottom-[-20%] left-[-10%] w-[70%] h-[70%] bg-gradient-to-tr from-forest-200/40 to-forest-400/25 rounded-full blur-[120px] animate-blob animation-delay-2000 mix-blend-multiply"></div>
-          
-          <div className="container-saas w-full relative z-10">
-            <motion.a
-              href="/"
-              className="inline-flex items-center gap-2 mb-6 transition-colors"
-              style={{ color: '#4B5563' }}
-              whileHover={{ x: -5 }}
-            >
-              <ArrowLeft size={20} />
-              <span>Back to home</span>
-            </motion.a>
+{/* Hero Section */}
+<section className="relative py-20 sm:py-24 lg:py-32">
+  <div className="container-saas relative">
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.1 }}
+      className="max-w-2xl"
+    >
+      <h1
+        className="font-extrabold mb-6 leading-[1.08]"
+        style={{
+          letterSpacing: '-0.03em',
+          fontSize: 'clamp(40px, 4.5vw, 58px)',
+          color: '#0E2F1C',
+        }}
+      >
+        Building infrastructure for{' '}
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-forest-600 to-gold-600">
+          African trade
+        </span>
+      </h1>
 
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="max-w-3xl"
-            >
-              <h1
-                className="font-extrabold mb-5 leading-tight"
-                style={{
-                  letterSpacing: '-0.03em',
-                  lineHeight: 1.1,
-                  fontSize: 'clamp(42px, 5vw, 60px)',
-                  color: '#0E2F1C',
-                }}
-              >
-                Building infrastructure for{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-forest-600 to-gold-600">
-                  African trade
-                </span>
-              </h1>
-              <p className="leading-relaxed mb-0 max-w-[520px]" style={{ fontSize: 18, color: '#4B5563' }}>
-                We're solving cross-border payments, one corridor at a time. Starting with Ghana–Nigeria.
-              </p>
-            </motion.div>
-          </div>
-        </section>
+      <p
+        className="leading-relaxed"
+        style={{ fontSize: 18, color: '#4B5563' }}
+      >
+        We’re solving cross-border payments one corridor at a time. Starting with Ghana–Nigeria.
+      </p>
+    </motion.div>
+  </div>
+</section>
+
 
         {/* Story Section */}
         <section className="bg-white relative py-12 sm:py-16 lg:py-20">
@@ -194,7 +184,7 @@ export function AboutUs() {
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 items-stretch">
               {[
                 {
                   role: 'Co-founder & CEO',
@@ -215,16 +205,16 @@ export function AboutUs() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1 }}
-                  className="group"
+                  className="group flex flex-col h-full"
                 >
-                  <div className="rounded-xl sm:rounded-2xl overflow-hidden mb-4 sm:mb-5 shadow-lg group-hover:shadow-xl transition-shadow bg-white flex items-center justify-center border border-gray-100 group-hover:border-gold-300 transition-colors aspect-[3/4] max-h-[240px] sm:max-h-[280px] md:max-h-[340px] p-4 sm:p-5 md:p-6">
+                  <div className="flex-shrink-0 w-full max-w-[200px] sm:max-w-[220px] md:max-w-[260px] mx-auto flex items-center justify-center rounded-xl sm:rounded-2xl overflow-hidden shadow-lg group-hover:shadow-xl transition-shadow bg-white border border-gray-100 group-hover:border-gold-300 transition-colors p-4 sm:p-5 md:p-6 aspect-[3/4]">
                     <img
                       src={member.image}
                       alt={member.role}
-                      className="w-full h-full object-contain object-[38%_50%] group-hover:scale-105 transition-transform duration-300"
+                      className="max-w-full max-h-full w-auto h-auto object-contain object-center group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
-                  <p className="font-medium text-center text-sm sm:text-base mt-0" style={{ color: '#4B5563' }}>
+                  <p className="flex-shrink-0 font-medium text-center text-sm sm:text-base pt-3 sm:pt-4 w-full" style={{ color: '#4B5563' }}>
                     {member.role}
                   </p>
                 </motion.div>

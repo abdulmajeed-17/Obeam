@@ -196,17 +196,13 @@ export function Hero() {
             style={{ scale }}
             className="relative z-10 h-[280px] sm:h-[340px] xl:h-[420px] w-full min-w-0 flex items-center justify-center perspective-1000 order-2 xl:order-none"
           >
-            {/* Faint African pattern — bottom right, atmospheric */}
+            {/* Background glow — desktop only (lg+), no extra block behind card */}
             <div
-              className="absolute inset-0 pointer-events-none opacity-[0.04] bg-african-pattern rounded-[1.75rem]"
-              aria-hidden
-            />
-            {/* Animated pulse behind card — lighter on small screens so it doesn't dominate */}
-            <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none animate-card-pulse xl:opacity-100 opacity-60"
+              className="absolute inset-0 hidden lg:flex items-center justify-center pointer-events-none animate-card-pulse"
               style={{
                 background: 'radial-gradient(circle at 70% 40%, rgba(20, 92, 59, 0.85), transparent 60%)',
               }}
+              aria-hidden
             />
             {/* Main Card — Stripe-level polish: clean shadow, float on hover (4–6s calm motion) */}
             <motion.div
@@ -217,10 +213,10 @@ export function Hero() {
                 opacity: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] },
                 y: { duration: 0.4, ease: 'easeOut' },
               }}
-              className="relative z-10 w-full max-w-[420px] overflow-visible p-4 pb-12 sm:p-6 sm:pb-7 lg:p-7 rounded-[16px] sm:rounded-[18px] lg:rounded-[20px]"
+              className="relative z-10 w-full max-w-[420px] overflow-visible p-4 pb-12 sm:p-6 sm:pb-7 lg:p-7 rounded-[16px] sm:rounded-[18px] lg:rounded-[20px] mx-auto"
               style={{
                 background: '#FFFFFF',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 10px 25px rgba(0,0,0,0.05)',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06)',
               }}
             >
 
@@ -296,9 +292,9 @@ export function Hero() {
                 </div>
               </div>
 
-              {/* FX badge — tighter to button on mobile */}
+              {/* FX badge — desktop only (lg+), hidden on tablet/mobile */}
               <motion.div
-                className="absolute bottom-2 right-2 sm:bottom-0 sm:right-0 sm:translate-x-2 sm:translate-y-2 z-20 flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-[#0B3B2E]/95 px-2 py-1.5 sm:px-3 sm:py-2 shadow-lg border border-forest-800"
+                className="absolute bottom-0 right-0 translate-x-2 translate-y-2 z-20 hidden lg:flex items-center gap-2 rounded-xl bg-[#0B3B2E]/95 px-3 py-2 shadow-lg border border-forest-800"
                 animate={{ y: [0, -3, 0] }}
                 transition={{ repeat: Infinity, duration: 5, ease: 'easeInOut' }}
               >
