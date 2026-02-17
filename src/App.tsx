@@ -12,6 +12,7 @@ import { FAQ } from './components/FAQ';
 import { Footer } from './components/Footer';
 import { AboutUs } from './components/AboutUs';
 import { Auth } from './components/Auth';
+import { Dashboard } from './components/Dashboard';
 
 export function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -19,12 +20,19 @@ export function App() {
   useEffect(() => {
     const path = window.location.pathname;
     if (path === '/about') setCurrentPage('about');
+    else if (path === '/dashboard') setCurrentPage('dashboard');
     else if (path === '/signup' || path === '/login') setCurrentPage(path.slice(1));
     else setCurrentPage('home');
+
+    if (path === '/dashboard' && !localStorage.getItem('obeam_token')) {
+      window.history.replaceState({}, '', '/login');
+      setCurrentPage('login');
+    }
 
     const handlePopState = () => {
       const path = window.location.pathname;
       if (path === '/about') setCurrentPage('about');
+      else if (path === '/dashboard') setCurrentPage('dashboard');
       else if (path === '/signup' || path === '/login') setCurrentPage(path.slice(1));
       else setCurrentPage('home');
     };
@@ -51,6 +59,12 @@ export function App() {
         e.preventDefault();
         window.history.pushState({}, '', href);
         setCurrentPage(href.slice(1));
+        return;
+      }
+      if (href === '/dashboard') {
+        e.preventDefault();
+        window.history.pushState({}, '', '/dashboard');
+        setCurrentPage('dashboard');
         return;
       }
       if (href === '/' || href === '') {
@@ -92,6 +106,17 @@ export function App() {
           className="min-h-screen"
         >
           <Auth />
+        </motion.div>
+      ) : currentPage === 'dashboard' ? (
+        <motion.div
+          key="dashboard"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+          className="min-h-screen font-sans text-gray-900 selection:bg-gold-500/30"
+        >
+          <Dashboard />
         </motion.div>
       ) : (
         <motion.div

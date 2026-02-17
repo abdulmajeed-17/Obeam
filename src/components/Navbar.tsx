@@ -9,6 +9,7 @@ import { Menu, X } from 'lucide-react';
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { scrollY } = useScroll();
+  const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('obeam_token');
   
   // Match hero section warm beige - no white rectangle
   const backgroundColor = useTransform(
@@ -129,14 +130,35 @@ export function Navbar() {
               </motion.a>
             )}
 
-            <motion.a
-              href="/signup"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/20 hover:shadow-xl hover:shadow-forest-900/30 transition-all"
-            >
-              Start sending
-            </motion.a>
+            {hasToken ? (
+              <motion.a
+                href="/dashboard"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/20 hover:shadow-xl hover:shadow-forest-900/30 transition-all"
+              >
+                Dashboard
+              </motion.a>
+            ) : (
+              <>
+                <motion.a
+                  href="/login"
+                  className="text-forest-900/80 hover:text-forest-900 font-medium"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Log in
+                </motion.a>
+                <motion.a
+                  href="/signup"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/20 hover:shadow-xl hover:shadow-forest-900/30 transition-all"
+                >
+                  Start sending
+                </motion.a>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button — touch-friendly 44px target */}
@@ -183,12 +205,32 @@ export function Navbar() {
                   {link.name}
                 </a>
               ))}
-              <a
-                href="/signup"
-                className="touch-target bg-forest-900 text-white font-bold py-4 px-6 rounded-xl text-center mt-4 shadow-lg shadow-forest-900/20"
-              >
-                Start sending
-              </a>
+              {hasToken ? (
+                <a
+                  href="/dashboard"
+                  className="touch-target bg-forest-900 text-white font-bold py-4 px-6 rounded-xl text-center mt-4 shadow-lg shadow-forest-900/20"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Dashboard
+                </a>
+              ) : (
+                <>
+                  <a
+                    href="/login"
+                    className="touch-target text-lg font-medium text-forest-900 py-3 px-4 hover:bg-gray-50 rounded-xl transition-colors"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Log in
+                  </a>
+                  <a
+                    href="/signup"
+                    className="touch-target bg-forest-900 text-white font-bold py-4 px-6 rounded-xl text-center mt-4 shadow-lg shadow-forest-900/20"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    Start sending
+                  </a>
+                </>
+              )}
             </div>
           </motion.div>
         }

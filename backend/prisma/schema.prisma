@@ -13,12 +13,16 @@ datasource db {
 enum CurrencyCode {
   NGN
   GHS
+
+  @@map("currency_code")
 }
 
 enum BusinessStatus {
   PENDING
   ACTIVE
   SUSPENDED
+
+  @@map("business_status")
 }
 
 enum TransferStatus {
@@ -30,6 +34,8 @@ enum TransferStatus {
   SETTLED
   FAILED
   CANCELLED
+
+  @@map("transfer_status")
 }
 
 enum AccountType {
@@ -39,6 +45,8 @@ enum AccountType {
   FEES
   FX_REVENUE
   PAYABLE
+
+  @@map("account_type")
 }
 
 enum EntryType {
@@ -49,6 +57,8 @@ enum EntryType {
   TRANSFER_CANCEL
   FEE_CHARGE
   FX_CONVERSION
+
+  @@map("entry_type")
 }
 
 model Business {
@@ -63,6 +73,8 @@ model Business {
   fxTrades   FxTrade[]
   transfers  Transfer[]
   auditLogs  AuditLog[]
+
+  @@map("businesses")
 }
 
 model User {
@@ -77,6 +89,8 @@ model User {
   journalEntries JournalEntry[]
   transfers    Transfer[]
   auditLogs    AuditLog[]
+
+  @@map("users")
 }
 
 model Counterparty {
@@ -89,6 +103,8 @@ model Counterparty {
   createdAt  DateTime @default(now()) @map("created_at")
   business   Business @relation(fields: [businessId], references: [id])
   transfers  Transfer[]
+
+  @@map("counterparties")
 }
 
 model Account {
@@ -101,6 +117,8 @@ model Account {
   createdAt   DateTime    @default(now()) @map("created_at")
   business    Business?   @relation(fields: [businessId], references: [id])
   postings    Posting[]
+
+  @@map("accounts")
 }
 
 model JournalEntry {
@@ -114,6 +132,8 @@ model JournalEntry {
   createdAt     DateTime @default(now()) @map("created_at")
   createdByUser User?    @relation(fields: [createdBy], references: [id])
   postings      Posting[]
+
+  @@map("journal_entries")
 }
 
 model Posting {
@@ -125,6 +145,8 @@ model Posting {
   createdAt DateTime @default(now()) @map("created_at")
   entry     JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   account   Account  @relation(fields: [accountId], references: [id])
+
+  @@map("postings")
 }
 
 model FxRate {
@@ -135,6 +157,8 @@ model FxRate {
   source    String
   asOf      DateTime      @map("as_of")
   createdAt DateTime      @default(now()) @map("created_at")
+
+  @@map("fx_rates")
 }
 
 model FxTrade {
@@ -149,6 +173,8 @@ model FxTrade {
   createdAt     DateTime      @default(now()) @map("created_at")
   business      Business      @relation(fields: [businessId], references: [id])
   transfers     Transfer[]
+
+  @@map("fx_trades")
 }
 
 model Transfer {
@@ -169,6 +195,8 @@ model Transfer {
   counterparty   Counterparty   @relation(fields: [counterpartyId], references: [id])
   fxTrade        FxTrade?      @relation(fields: [fxTradeId], references: [id])
   createdByUser  User?         @relation(fields: [createdBy], references: [id])
+
+  @@map("transfers")
 }
 
 model AuditLog {
@@ -182,4 +210,6 @@ model AuditLog {
   createdAt   DateTime @default(now()) @map("created_at")
   actorUser   User?    @relation(fields: [actorUserId], references: [id])
   business    Business? @relation(fields: [businessId], references: [id])
+
+  @@map("audit_logs")
 }

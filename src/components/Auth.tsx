@@ -58,13 +58,14 @@ export function Auth() {
       }
       if (data.access_token) {
         localStorage.setItem('obeam_token', data.access_token);
-        setSuccess('Account created. Redirecting...');
-        setTimeout(() => { window.location.href = '/'; }, 1500);
+        window.history.pushState({}, '', '/dashboard');
+        window.dispatchEvent(new PopStateEvent('popstate'));
       } else {
         setSuccess('Account created.');
       }
     } catch (err) {
-      setError('Network error. Check the API URL or try again.');
+      const msg = err instanceof Error ? err.message : 'Network error';
+      setError(`Network error: ${msg}. Is the backend running at ${API_BASE}?`);
     } finally {
       setLoading(false);
     }
@@ -92,13 +93,14 @@ export function Auth() {
       }
       if (data.access_token) {
         localStorage.setItem('obeam_token', data.access_token);
-        setSuccess('Logged in. Redirecting...');
-        setTimeout(() => { window.location.href = '/'; }, 1500);
+        window.history.pushState({}, '', '/dashboard');
+        window.dispatchEvent(new PopStateEvent('popstate'));
       } else {
         setSuccess('Logged in.');
       }
     } catch (err) {
-      setError('Network error. Check the API URL or try again.');
+      const msg = err instanceof Error ? err.message : 'Network error';
+      setError(`Network error: ${msg}. Is the backend running at ${API_BASE}?`);
     } finally {
       setLoading(false);
     }
@@ -106,8 +108,8 @@ export function Auth() {
 
   return (
     <motion.div
-      className="min-h-screen bg-forest-950 flex flex-col overflow-x-hidden"
-      style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 1.5rem)' }}
+      className="h-screen bg-forest-950 flex flex-col overflow-hidden overflow-x-hidden"
+      style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0.5rem)' }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
@@ -119,8 +121,8 @@ export function Auth() {
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[70%] h-[40%] bg-forest-600/15 rounded-full blur-[80px]" />
       </div>
 
-      {/* Header — enough top padding so "Back to home" isn't clipped on mobile */}
-      <header className="relative z-10 flex items-center justify-between px-4 sm:px-6 lg:px-8 pt-6 pb-5 sm:py-5">
+      {/* Header — compact */}
+      <header className="relative z-10 flex shrink-0 items-center justify-between px-4 sm:px-6 lg:px-8 pt-3 pb-2 sm:pt-4 sm:pb-3">
         <a
           href="/"
           className="flex items-center gap-2 group text-cream-100 hover:text-white transition-colors"
@@ -130,28 +132,29 @@ export function Auth() {
           </div>
           <span className="text-xl font-extrabold tracking-tight">beam</span>
         </a>
+        {/* Back to home — hidden on mobile; swipe/back gesture handles navigation */}
         <a
           href="/"
-          className="flex items-center gap-2 text-cream-200 hover:text-white text-sm font-semibold transition-colors"
+          className="hidden sm:flex items-center gap-2 text-cream-200 hover:text-white text-sm font-semibold transition-colors"
         >
           <ArrowLeft size={18} />
           Back to home
         </a>
       </header>
 
-      {/* Main content */}
-      <main className="relative z-10 flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-        <div className="w-full max-w-5xl flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-          {/* Left: Form card */}
+      {/* Main content — single column on mobile/tablet; form + steps sidebar on desktop */}
+      <main className="relative z-10 flex-1 flex min-h-0 items-center justify-center px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="w-full max-w-5xl flex flex-col lg:flex-row items-center justify-center gap-10 lg:gap-16">
+          {/* Form card — mobile-like width on desktop too (max-w-sm ≈ 384px) */}
           <motion.div
+            className="w-full max-w-sm shrink-0 relative"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="w-full max-w-md relative"
           >
-            {/* Subtle radial pulse behind form — depth without distraction */}
-            <div className="absolute -inset-2 sm:-inset-4 rounded-[1.75rem] sm:rounded-[2rem] bg-gold-500/[0.05] animate-pulse pointer-events-none" style={{ animationDuration: '4s' }} />
-            <div className="relative bg-cream-50/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10 p-8 md:p-10">
+            {/* Subtle radial pulse behind form */}
+            <div className="absolute -inset-2 rounded-[1.5rem] bg-gold-500/[0.05] animate-pulse pointer-events-none" style={{ animationDuration: '4s' }} />
+            <div className="relative bg-cream-50/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-5 sm:p-6 md:p-7">
               <AnimatePresence mode="wait">
                 {mode === 'signup' ? (
                   <motion.form
@@ -160,87 +163,84 @@ export function Auth() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 10 }}
                     transition={{ duration: 0.25 }}
-                    className="space-y-6"
+                    className="space-y-4 sm:space-y-5"
                     onSubmit={handleSignup}
                   >
-                    <h1 className="text-3xl font-extrabold text-forest-950 tracking-tight">
+                    <h1 className="text-xl sm:text-2xl font-extrabold text-forest-950 tracking-tight">
                       Create your account
                     </h1>
-                    <p className="text-gray-600 text-sm leading-relaxed">
-                      Start paying Ghana suppliers in 24 hours.
-                      Transparent FX. Zero hidden fees.
+                    <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
+                      Start paying Ghana suppliers in 24 hours. Transparent FX. Zero hidden fees.
                     </p>
 
                     {error && (
-                      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2">
+                      <p className="text-xs sm:text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                         {error}
                       </p>
                     )}
                     {success && (
-                      <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2">
+                      <p className="text-xs sm:text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                         {success}
                       </p>
                     )}
 
                     <div>
-                      <label className="block text-sm font-medium text-forest-900 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-forest-900 mb-1.5">
                         Business name
                       </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Your company name"
-                          value={businessName}
-                          onChange={(e) => setBusinessName(e.target.value)}
-                          className="w-full pl-4 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        placeholder="Your company name"
+                        value={businessName}
+                        onChange={(e) => setBusinessName(e.target.value)}
+                        className="w-full pl-3 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm"
+                      />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-forest-900 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-forest-900 mb-1.5">
                         Business email
                       </label>
                       <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="email"
                           placeholder="you@company.com"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+                          className="w-full pl-9 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-forest-900 mb-2">
-                        Password <span className="text-gray-400 font-normal">(min 8 characters)</span>
+                      <label className="block text-xs sm:text-sm font-medium text-forest-900 mb-1.5">
+                        Password <span className="text-gray-400 font-normal">(min 8)</span>
                       </label>
                       <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="password"
                           placeholder="••••••••"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+                          className="w-full pl-9 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-forest-900 mb-2">
-                        Phone number <span className="text-gray-400 font-normal">(optional)</span>
+                      <label className="block text-xs sm:text-sm font-medium text-forest-900 mb-1.5">
+                        Phone <span className="text-gray-400 font-normal">(optional)</span>
                       </label>
                       <div className="relative">
-                        <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="tel"
                           placeholder="+234 800 000 0000"
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+                          className="w-full pl-9 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm"
                         />
                       </div>
                     </div>
@@ -248,34 +248,32 @@ export function Auth() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-4 rounded-xl bg-forest-900 text-white font-bold text-center shadow-lg shadow-forest-900/25 hover:bg-forest-800 focus:outline-none focus:ring-2 focus:ring-gold-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full py-3.5 rounded-xl bg-forest-900 text-white font-bold text-sm text-center shadow-lg shadow-forest-900/25 hover:bg-forest-800 focus:outline-none focus:ring-2 focus:ring-gold-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {loading ? 'Creating account...' : 'Continue'}
                     </button>
 
-                    <p className="text-center text-xs font-medium text-gray-400 pt-2 pb-3">
-                      or continue with
-                    </p>
-                    <div className="border-t border-gray-200 pt-4">
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2 pt-2">
+                      <span className="text-xs text-gray-400">or</span>
+                      <div className="flex-1 grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          className="flex flex-col items-center justify-center gap-2 min-h-[72px] py-4 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gold-500/30 transition-all"
+                          className="flex items-center justify-center gap-1.5 py-3 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-medium"
                         >
-                          <span className="text-lg font-semibold text-gray-600">G</span>
-                          <span className="text-xs font-medium text-gray-600">Google</span>
+                          <span className="text-sm font-semibold text-gray-600">G</span>
+                          Google
                         </button>
                         <button
                           type="button"
-                          className="flex flex-col items-center justify-center gap-2 min-h-[72px] py-4 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gold-500/30 transition-all"
+                          className="flex items-center justify-center gap-1.5 py-3 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-medium"
                         >
-                          <Mail className="w-5 h-5 text-gray-500 shrink-0" />
-                          <span className="text-xs font-medium text-gray-600">Work email</span>
+                          <Mail className="w-4 h-4 text-gray-500 shrink-0" />
+                          Work email
                         </button>
                       </div>
                     </div>
 
-                    <p className="text-center text-sm text-gray-600 pt-1">
+                    <p className="text-center text-xs text-gray-600 pt-1">
                       Already have an account?{' '}
                       <button
                         type="button"
@@ -293,55 +291,55 @@ export function Auth() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 10 }}
                     transition={{ duration: 0.25 }}
-                    className="space-y-6"
+                    className="space-y-4 sm:space-y-5"
                     onSubmit={handleLogin}
                   >
-                    <h1 className="text-3xl font-extrabold text-forest-950 tracking-tight">
+                    <h1 className="text-xl sm:text-2xl font-extrabold text-forest-950 tracking-tight">
                       Welcome back
                     </h1>
-                    <p className="text-gray-600 text-sm leading-relaxed">
+                    <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
                       Enter your email and password to sign in.
                     </p>
 
                     {error && (
-                      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2">
+                      <p className="text-xs sm:text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                         {error}
                       </p>
                     )}
                     {success && (
-                      <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2">
+                      <p className="text-xs sm:text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                         {success}
                       </p>
                     )}
 
                     <div>
-                      <label className="block text-sm font-medium text-forest-900 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-forest-900 mb-1.5">
                         Email
                       </label>
                       <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="email"
                           placeholder="you@company.com"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+                          className="w-full pl-9 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-forest-900 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-forest-900 mb-1.5">
                         Password
                       </label>
                       <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="password"
                           placeholder="••••••••"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+                          className="w-full pl-9 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm"
                         />
                       </div>
                     </div>
@@ -349,34 +347,32 @@ export function Auth() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-4 rounded-xl bg-forest-900 text-white font-bold text-center shadow-lg shadow-forest-900/25 hover:bg-forest-800 focus:outline-none focus:ring-2 focus:ring-gold-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full py-3.5 rounded-xl bg-forest-900 text-white font-bold text-sm text-center shadow-lg shadow-forest-900/25 hover:bg-forest-800 focus:outline-none focus:ring-2 focus:ring-gold-500/50 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {loading ? 'Signing in...' : 'Continue'}
                     </button>
 
-                    <p className="text-center text-xs font-medium text-gray-400 pt-2 pb-3">
-                      or continue with
-                    </p>
-                    <div className="border-t border-gray-200 pt-4">
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2 pt-2">
+                      <span className="text-xs text-gray-400">or</span>
+                      <div className="flex-1 grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          className="flex flex-col items-center justify-center gap-2 min-h-[72px] py-4 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gold-500/30 transition-all"
+                          className="flex items-center justify-center gap-1.5 py-3 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-medium"
                         >
-                          <span className="text-lg font-semibold text-gray-600">G</span>
-                          <span className="text-xs font-medium text-gray-600">Google</span>
+                          <span className="text-sm font-semibold text-gray-600">G</span>
+                          Google
                         </button>
                         <button
                           type="button"
-                          className="flex flex-col items-center justify-center gap-2 min-h-[72px] py-4 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gold-500/30 transition-all"
+                          className="flex items-center justify-center gap-1.5 py-3 rounded-lg bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-medium"
                         >
-                          <Mail className="w-5 h-5 text-gray-500 shrink-0" />
-                          <span className="text-xs font-medium text-gray-600">Work email</span>
+                          <Mail className="w-4 h-4 text-gray-500 shrink-0" />
+                          Work email
                         </button>
                       </div>
                     </div>
 
-                    <p className="text-center text-sm text-gray-600 pt-1">
+                    <p className="text-center text-xs text-gray-600 pt-1">
                       Don&apos;t have an account?{' '}
                       <button
                         type="button"
@@ -392,7 +388,7 @@ export function Auth() {
             </div>
           </motion.div>
 
-          {/* Right: 3-step timeline — meaningful, not decorative */}
+          {/* Right: Three steps — desktop only */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -438,8 +434,8 @@ export function Auth() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4 border-t border-white/5">
+      {/* Footer — compact */}
+      <footer className="relative z-10 shrink-0 flex items-center justify-between px-4 sm:px-6 lg:px-8 py-2 sm:py-3 border-t border-white/5">
         <button
           type="button"
           className="text-sm text-gray-500 hover:text-gray-400 focus:outline-none flex items-center gap-2"

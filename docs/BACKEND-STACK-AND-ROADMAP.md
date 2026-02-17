@@ -37,11 +37,11 @@
 
 ## Phase 1 – Backend Foundation
 
-- [ ] Set up NestJS
-- [ ] Connect Postgres (Prisma or TypeORM)
-- [ ] User auth (signup, login, refresh, JWT)
-- [ ] Business creation
-- [ ] Wallet (account) creation per business per currency
+- [x] Set up NestJS
+- [x] Connect Postgres (Prisma or TypeORM)
+- [x] User auth (signup, login, refresh, JWT)
+- [x] Business creation (on signup + GET/PATCH /business/me)
+- [x] Wallet (account) creation per business per currency (on signup + GET /wallets, balance, ledger)
 - [ ] Internal ledger transfers (double-entry)
 
 ## Phase 2 – FX Engine
