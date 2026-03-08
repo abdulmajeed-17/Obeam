@@ -735,10 +735,10 @@ export function Dashboard() {
                     <p className="text-sm text-forest-900/60 mb-3">Send to suppliers or partners across Africa.</p>
                     <div className="flex gap-2 mb-2">
                       <select value={sendFromCurrency} onChange={(e) => { setSendFromCurrency(e.target.value); if (e.target.value === sendToCurrency) setSendToCurrency(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
-                        {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                        {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                       </select>
                       <span className="flex items-center text-forest-900/40 text-xs">→</span>
-                      <select value={sendToCurrency} onChange={(e) => { setSendToCurrency(e.target.value); if (e.target.value === sendFromCurrency) setSendFromCurrency(CURRENCY_CODES.find((c) => c !== e.target.value) || 'NGN'); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                      <select value={sendToCurrency} onChange={(e) => { setSendToCurrency(e.target.value); if (e.target.value === sendFromCurrency) setSendFromCurrency(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
                         {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                       </select>
                     </div>
@@ -774,10 +774,10 @@ export function Dashboard() {
                     <p className="text-sm text-forest-900/60 mb-3">Convert between wallets at live rates.</p>
                     <div className="flex gap-2 mb-3">
                       <select value={convertCardFrom} onChange={(e) => { setConvertCardFrom(e.target.value); if (e.target.value === convertCardTo) setConvertCardTo(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); setConvertCardQuote(null); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
-                        {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                        {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                       </select>
                       <span className="flex items-center text-forest-900/40 text-xs">→</span>
-                      <select value={convertCardTo} onChange={(e) => { setConvertCardTo(e.target.value); if (e.target.value === convertCardFrom) setConvertCardFrom(CURRENCY_CODES.find((c) => c !== e.target.value) || 'NGN'); setConvertCardQuote(null); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                      <select value={convertCardTo} onChange={(e) => { setConvertCardTo(e.target.value); if (e.target.value === convertCardFrom) setConvertCardFrom(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); setConvertCardQuote(null); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
                         {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                       </select>
                     </div>
@@ -834,7 +834,18 @@ export function Dashboard() {
 
             {section === 'wallets' && (
               <motion.div key="wallets" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-5xl">
-                <p className="text-forest-900/70 mb-6 text-[15px]">Balance, top-up, and full activity.</p>
+                <div className="flex items-center justify-between mb-6">
+                  <p className="text-forest-900/70 text-[15px]">Balance, top-up, and full activity.</p>
+                  {availableCurrencies.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setAddCurrencyOpen(!addCurrencyOpen); setAddCurrencyCode(availableCurrencies[0]); setAddCurrencyError(null); }}
+                      className="min-h-[36px] flex items-center gap-1.5 px-4 py-2 rounded-xl bg-forest-900 text-white text-xs font-semibold hover:bg-forest-800 shadow-lg shadow-forest-900/20 transition-all"
+                    >
+                      <span className="text-base leading-none">+</span> Add wallet
+                    </button>
+                  )}
+                </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mb-6">
                   {wallets.map((wallet) => (

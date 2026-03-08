@@ -141,8 +141,14 @@ export class LedgerService {
 
     const [treasury, wallet] = await Promise.all([
       this.ensureTreasury(currency),
-      this.ensureCustomerWallet(businessId, currency),
+      this.prisma.account.findFirst({
+        where: { businessId, currency, type: 'CUSTOMER_WALLET' },
+      }),
     ]);
+
+    if (!wallet) {
+      throw new BadRequestException(`No ${currency} wallet found. Create one first.`);
+    }
 
     const entry = await this.prisma.$transaction(async (tx) => {
       const journalEntry = await tx.journalEntry.create({
