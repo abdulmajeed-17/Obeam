@@ -32,7 +32,7 @@ describe('AuthService', () => {
   describe('signup', () => {
     const dto = { email: 'test@example.com', password: 'securePass123', businessName: 'Test Corp' };
 
-    it('creates user, business, wallets and returns JWT', async () => {
+    it('creates user and business (no wallets) and returns JWT', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       (bcryptMock.hash as jest.Mock).mockResolvedValue('hashed-password');
 
@@ -43,7 +43,6 @@ describe('AuthService', () => {
         const tx = {
           business: { create: jest.fn().mockResolvedValue(mockBusiness) },
           user: { create: jest.fn().mockResolvedValue(mockUser) },
-          account: { createMany: jest.fn().mockResolvedValue({ count: 7 }) },
         };
         return fn(tx);
       });
@@ -61,38 +60,6 @@ describe('AuthService', () => {
     it('throws ConflictException if email already exists', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'existing', email: dto.email });
       await expect(service.signup(dto)).rejects.toThrow(ConflictException);
-    });
-
-    it('creates wallets for all 7 supported currencies', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
-      (bcryptMock.hash as jest.Mock).mockResolvedValue('hashed');
-
-      let createManyData: any[] = [];
-      prisma.$transaction.mockImplementation(async (fn: any) => {
-        const tx = {
-          business: { create: jest.fn().mockResolvedValue({ id: 'biz-1', name: 'X', country: 'NG', status: 'PENDING' }) },
-          user: { create: jest.fn().mockResolvedValue({ id: 'user-1', email: dto.email, businessId: 'biz-1' }) },
-          account: {
-            createMany: jest.fn().mockImplementation(({ data }) => {
-              createManyData = data;
-              return { count: data.length };
-            }),
-          },
-        };
-        return fn(tx);
-      });
-
-      await service.signup(dto);
-
-      expect(createManyData).toHaveLength(7);
-      const currencies = createManyData.map((d: any) => d.currency);
-      expect(currencies).toContain('NGN');
-      expect(currencies).toContain('GHS');
-      expect(currencies).toContain('KES');
-      expect(currencies).toContain('ZAR');
-      expect(currencies).toContain('XOF');
-      expect(currencies).toContain('USD');
-      expect(currencies).toContain('GBP');
     });
   });
 

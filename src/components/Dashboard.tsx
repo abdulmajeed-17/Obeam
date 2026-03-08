@@ -726,8 +726,19 @@ export function Dashboard() {
                 )}
 
                 {wallets.length === 0 && (
-                  <div className="bg-white/80 rounded-2xl border border-forest-900/8 shadow-lg p-5 mb-4">
-                    <p className="text-forest-900/70 text-sm">No wallets yet. Use Wallets to see balances after top-up.</p>
+                  <div className="bg-white/90 rounded-2xl border border-gold-500/30 shadow-lg p-6 mb-4 text-center">
+                    <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gold-500/10 flex items-center justify-center">
+                      <Wallet className="w-7 h-7 text-gold-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-forest-900 mb-1">Create your first wallet</h3>
+                    <p className="text-forest-900/60 text-sm mb-4">Pick a currency to get started — you can add more later.</p>
+                    <button
+                      type="button"
+                      onClick={() => { setSection('wallets'); setTimeout(() => { setAddCurrencyOpen(true); setAddCurrencyCode(availableCurrencies[0] || 'NGN'); setAddCurrencyError(null); }, 100); }}
+                      className="min-h-[44px] inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-forest-900 text-white text-sm font-semibold hover:bg-forest-800 shadow-lg shadow-forest-900/20 transition-all active:bg-forest-800"
+                    >
+                      <span className="text-lg leading-none">+</span> Add wallet
+                    </button>
                   </div>
                 )}
 
