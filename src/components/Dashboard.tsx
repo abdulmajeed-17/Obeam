@@ -646,7 +646,7 @@ export function Dashboard() {
               onClick={() => { setAddCurrencyOpen(!addCurrencyOpen); setAddCurrencyCode(availableCurrencies[0]); setAddCurrencyError(null); }}
               className="min-h-[40px] flex items-center gap-1 px-3 sm:px-4 py-2 rounded-xl bg-forest-900 text-white text-xs sm:text-sm font-semibold hover:bg-forest-800 shadow-md transition-all active:bg-forest-800 shrink-0"
             >
-              <span className="text-base leading-none">+</span> Add
+              <span className="text-base leading-none">+</span> Add wallet
             </button>
           )}
         </header>
