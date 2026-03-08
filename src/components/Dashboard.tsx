@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -8,20 +8,25 @@ import {
   CreditCard,
   Menu,
   X,
-  PlusCircle,
   Send,
   ArrowRightLeft,
   Receipt,
-  Shield,
   Zap,
   ChevronRight,
   Users,
+  FileText,
+  Shield,
+  Upload,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
 } from 'lucide-react';
+import { CURRENCIES, CURRENCY_CODES, COUNTRIES, formatBalance, getCurrencySymbol } from '../shared/currencies';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 type Business = { id: string; name: string; country: string; status: string };
-type Wallet = { id: string; currency: string; label: string; balance: string };
+type WalletItem = { id: string; currency: string; label: string; balance: string };
 
 type ActivityItem = {
   id: string;
@@ -34,16 +39,30 @@ type ActivityItem = {
   ref?: string;
 };
 
-type DashboardSection = 'overview' | 'wallets';
+type Counterparty = { id: string; name: string; country: string; payoutType: string; payoutRef: string };
+type DashboardSection = 'overview' | 'wallets' | 'transfers' | 'invoices' | 'kyb';
+type TransferItem = {
+  id: string;
+  counterpartyId: string;
+  fromCurrency: string;
+  toCurrency: string;
+  fromAmount: string;
+  toAmount: string;
+  feeAmount: string;
+  status: string;
+  createdAt: string;
+  counterparty?: { name: string; country: string };
+};
 
 export function Dashboard() {
   const [business, setBusiness] = useState<Business | null>(null);
-  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [wallets, setWallets] = useState<WalletItem[]>([]);
+  const [counterparties, setCounterparties] = useState<Counterparty[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<DashboardSection>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [topUpCurrency, setTopUpCurrency] = useState<'NGN' | 'GHS'>('NGN');
+  const [topUpCurrency, setTopUpCurrency] = useState('NGN');
   const [topUpAmount, setTopUpAmount] = useState('');
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [topUpMessage, setTopUpMessage] = useState<string | null>(null);
@@ -51,6 +70,37 @@ export function Dashboard() {
   const [fxRate, setFxRate] = useState<{ rate: string; asOf: string } | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string>('');
+  const [addBeneficiaryOpen, setAddBeneficiaryOpen] = useState(false);
+  const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [convertModalOpen, setConvertModalOpen] = useState(false);
+  const [newBeneficiaryName, setNewBeneficiaryName] = useState('');
+  const [newBeneficiaryCountry, setNewBeneficiaryCountry] = useState('GH');
+  const [newBeneficiaryPayoutType, setNewBeneficiaryPayoutType] = useState('BANK');
+  const [newBeneficiaryPayoutRef, setNewBeneficiaryPayoutRef] = useState('');
+  const [addBeneficiaryLoading, setAddBeneficiaryLoading] = useState(false);
+  const [addBeneficiaryError, setAddBeneficiaryError] = useState<string | null>(null);
+  const [sendAmount, setSendAmount] = useState('');
+  const [sendQuote, setSendQuote] = useState<{ toAmount: string; rateUsed: string } | null>(null);
+  const [sendLoading, setSendLoading] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendFromCurrency, setSendFromCurrency] = useState('NGN');
+  const [sendToCurrency, setSendToCurrency] = useState('GHS');
+  const [convertFrom, setConvertFrom] = useState('NGN');
+  const [convertTo, setConvertTo] = useState('GHS');
+  const [convertAmount, setConvertAmount] = useState('');
+  const [convertQuote, setConvertQuote] = useState<{ toAmount: string; rateUsed: string } | null>(null);
+  const [convertLoading, setConvertLoading] = useState(false);
+  const [convertCardAmount, setConvertCardAmount] = useState('');
+  const [convertCardQuote, setConvertCardQuote] = useState<{ toAmount: string; rateUsed: string } | null>(null);
+  const [convertCardLoading, setConvertCardLoading] = useState(false);
+  const [transfersList, setTransfersList] = useState<TransferItem[]>([]);
+  const [transfersLoading, setTransfersLoading] = useState(false);
+  const [selectedTransferId, setSelectedTransferId] = useState<string | null>(null);
+  const [transferDetail, setTransferDetail] = useState<TransferItem | null>(null);
+  const [executeConvertLoading, setExecuteConvertLoading] = useState(false);
+  const [executeConvertError, setExecuteConvertError] = useState<string | null>(null);
+  const [cancelTransferLoading, setCancelTransferLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('obeam_token');
@@ -63,12 +113,13 @@ export function Dashboard() {
     const fetchData = async () => {
       try {
         const headers = { Authorization: `Bearer ${token}` };
-        const [businessRes, walletsRes] = await Promise.all([
+        const [businessRes, walletsRes, counterpartiesRes] = await Promise.all([
           fetch(`${API_BASE}/business/me`, { headers }),
           fetch(`${API_BASE}/wallets`, { headers }),
+          fetch(`${API_BASE}/counterparties`, { headers }),
         ]);
 
-        if (businessRes.status === 401 || walletsRes.status === 401) {
+        if (businessRes.status === 401 || walletsRes.status === 401 || counterpartiesRes.status === 401) {
           localStorage.removeItem('obeam_token');
           window.history.pushState({}, '', '/login');
           window.dispatchEvent(new PopStateEvent('popstate'));
@@ -86,8 +137,10 @@ export function Dashboard() {
 
         const businessData = await businessRes.json();
         const walletsData = await walletsRes.json();
+        const counterpartiesData = counterpartiesRes.ok ? await counterpartiesRes.json() : { counterparties: [] };
         setBusiness(businessData);
         setWallets(walletsData.wallets || []);
+        setCounterparties(counterpartiesData.counterparties || []);
       } catch {
         setError('Network error.');
       } finally {
@@ -120,19 +173,21 @@ export function Dashboard() {
     return () => clearInterval(t);
   }, [business?.id, refetchKey]);
 
-  // Recent activity from ledger (NGN + GHS)
   useEffect(() => {
     if (!business) return;
     const token = localStorage.getItem('obeam_token');
     if (!token) return;
     setActivityLoading(true);
-    Promise.all([
-      fetch(`${API_BASE}/wallets/NGN/ledger?limit=10`, { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${API_BASE}/wallets/GHS/ledger?limit=10`, { headers: { Authorization: `Bearer ${token}` } }),
-    ])
-      .then(async ([rNgn, rGhs]) => {
-        const dataNgn = rNgn.ok ? await rNgn.json().catch(() => ({ items: [] })) : { items: [] };
-        const dataGhs = rGhs.ok ? await rGhs.json().catch(() => ({ items: [] })) : { items: [] };
+    const currenciesToFetch = wallets.map((w) => w.currency);
+    if (currenciesToFetch.length === 0) { setActivityLoading(false); return; }
+    Promise.all(
+      currenciesToFetch.map((cur) =>
+        fetch(`${API_BASE}/wallets/${cur}/ledger?limit=10`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(async (r) => ({ currency: cur, data: r.ok ? await r.json().catch(() => ({ items: [] })) : { items: [] } }))
+          .catch(() => ({ currency: cur, data: { items: [] } }))
+      )
+    )
+      .then((results) => {
         const mapType = (t: string) => (t === 'WALLET_TOPUP' ? 'Top up' : t === 'FX_CONVERSION' ? 'FX' : t.startsWith('TRANSFER') ? 'Send' : t);
         const toItem = (p: { id: string; createdAt: string; direction: string; amount: string; entryType: string }, currency: string): ActivityItem & { _ts: number } => ({
           id: p.id,
@@ -144,14 +199,11 @@ export function Dashboard() {
           ref: p.id.slice(0, 8).toUpperCase(),
           _ts: new Date(p.createdAt).getTime(),
         });
-        const combined: (ActivityItem & { _ts: number })[] = [
-          ...(dataNgn.items || []).map((p: { id: string; createdAt: string; direction: string; amount: string; entryType?: string }) =>
-            toItem({ ...p, entryType: p.entryType ?? 'WALLET_TOPUP' }, 'NGN'),
-          ),
-          ...(dataGhs.items || []).map((p: { id: string; createdAt: string; direction: string; amount: string; entryType?: string }) =>
-            toItem({ ...p, entryType: p.entryType ?? 'WALLET_TOPUP' }, 'GHS'),
-          ),
-        ];
+        const combined: (ActivityItem & { _ts: number })[] = results.flatMap(({ currency, data }) =>
+          (data.items || []).map((p: { id: string; createdAt: string; direction: string; amount: string; entryType?: string }) =>
+            toItem({ ...p, entryType: p.entryType ?? 'WALLET_TOPUP' }, currency)
+          )
+        );
         const items: ActivityItem[] = combined
           .sort((a, b) => b._ts - a._ts)
           .slice(0, 15)
@@ -160,9 +212,280 @@ export function Dashboard() {
       })
       .catch(() => setActivity([]))
       .finally(() => setActivityLoading(false));
-  }, [business?.id, refetchKey]);
+  }, [business?.id, refetchKey, wallets.length]);
+
+  // Transfers list when section is transfers
+  useEffect(() => {
+    if (section !== 'transfers' || !business) return;
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    setTransfersLoading(true);
+    fetch(`${API_BASE}/transfers`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : { transfers: [] }))
+      .then((data) => {
+        setTransfersList(data.transfers || []);
+        if (!selectedTransferId) setTransferDetail(null);
+      })
+      .catch(() => setTransfersList([]))
+      .finally(() => setTransfersLoading(false));
+  }, [section, refetchKey, business?.id]);
+
+  // Transfer detail when selected
+  useEffect(() => {
+    if (!selectedTransferId) {
+      setTransferDetail(null);
+      return;
+    }
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    fetch(`${API_BASE}/transfers/${selectedTransferId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setTransferDetail)
+      .catch(() => setTransferDetail(null));
+  }, [selectedTransferId]);
+
+  const handleCancelTransfer = async () => {
+    if (!selectedTransferId || !transferDetail) return;
+    if (transferDetail.status !== 'DRAFT' && transferDetail.status !== 'PENDING_FUNDS') return;
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    setCancelTransferLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/transfers/${selectedTransferId}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        await res.json().catch(() => ({}));
+        return;
+      }
+      setSelectedTransferId(null);
+      setTransferDetail(null);
+      setRefetchKey((k) => k + 1);
+    } finally {
+      setCancelTransferLoading(false);
+    }
+  };
 
   const refetchWallets = () => setRefetchKey((k) => k + 1);
+
+  const handleAddBeneficiary = async () => {
+    const name = newBeneficiaryName.trim();
+    const payoutRef = newBeneficiaryPayoutRef.trim();
+    if (!name || !payoutRef) {
+      setAddBeneficiaryError('Name and account/reference are required.');
+      return;
+    }
+    setAddBeneficiaryError(null);
+    setAddBeneficiaryLoading(true);
+    try {
+      const token = localStorage.getItem('obeam_token');
+      const res = await fetch(`${API_BASE}/counterparties`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name,
+          country: newBeneficiaryCountry || 'GH',
+          payoutType: newBeneficiaryPayoutType || 'BANK',
+          payoutRef,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setAddBeneficiaryError(err.message || 'Failed to add beneficiary.');
+        return;
+      }
+      setAddBeneficiaryOpen(false);
+      setNewBeneficiaryName('');
+      setNewBeneficiaryPayoutRef('');
+      setRefetchKey((k) => k + 1);
+    } catch {
+      setAddBeneficiaryError('Network error.');
+    } finally {
+      setAddBeneficiaryLoading(false);
+    }
+  };
+
+  const handleSendGetQuote = async () => {
+    const amountMajor = parseFloat(sendAmount);
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) {
+      setSendError('Enter a valid amount.');
+      return;
+    }
+    setSendError(null);
+    setSendQuote(null);
+    setSendLoading(true);
+    try {
+      const token = localStorage.getItem('obeam_token');
+      const fromAmountMinor = BigInt(Math.round(amountMajor * 100));
+      const res = await fetch(`${API_BASE}/fx/quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          fromCurrency: sendFromCurrency,
+          toCurrency: sendToCurrency,
+          fromAmount: fromAmountMinor.toString(),
+        }),
+      });
+      if (!res.ok) {
+        setSendError('Could not get quote.');
+        return;
+      }
+      const data = await res.json();
+      setSendQuote({ toAmount: data.toAmount, rateUsed: data.rateUsed });
+    } catch {
+      setSendError('Network error.');
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
+  const handleSendConfirm = async () => {
+    if (!selectedCounterpartyId || !sendAmount || !sendQuote) return;
+    const amountMajor = parseFloat(sendAmount);
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) return;
+    setSendError(null);
+    setSendLoading(true);
+    try {
+      const token = localStorage.getItem('obeam_token');
+      const fromAmountMinor = BigInt(Math.round(amountMajor * 100));
+      const toAmountMinor = BigInt(sendQuote.toAmount);
+      const createRes = await fetch(`${API_BASE}/transfers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          counterpartyId: selectedCounterpartyId,
+          fromCurrency: sendFromCurrency,
+          toCurrency: sendToCurrency,
+          fromAmount: fromAmountMinor.toString(),
+          toAmount: toAmountMinor.toString(),
+        }),
+      });
+      if (!createRes.ok) {
+        const err = await createRes.json().catch(() => ({}));
+        setSendError(err.message || 'Failed to create transfer.');
+        return;
+      }
+      const transfer = await createRes.json();
+      const confirmRes = await fetch(`${API_BASE}/transfers/${transfer.id}/confirm`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!confirmRes.ok) {
+        setSendError('Transfer created but confirm failed.');
+        return;
+      }
+      setSendModalOpen(false);
+      setSendAmount('');
+      setSendQuote(null);
+      setRefetchKey((k) => k + 1);
+    } catch {
+      setSendError('Network error.');
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
+  const handleConvertCardGetQuote = async () => {
+    const amountMajor = parseFloat(convertCardAmount);
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) {
+      setConvertCardQuote(null);
+      return;
+    }
+    setConvertCardQuote(null);
+    setExecuteConvertError(null);
+    setConvertCardLoading(true);
+    try {
+      const token = localStorage.getItem('obeam_token');
+      const fromAmountMinor = BigInt(Math.round(amountMajor * 100));
+      const res = await fetch(`${API_BASE}/fx/quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          fromCurrency: 'NGN',
+          toCurrency: 'GHS',
+          fromAmount: fromAmountMinor.toString(),
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConvertCardQuote({ toAmount: data.toAmount, rateUsed: data.rateUsed });
+      }
+    } catch {
+      setConvertCardQuote(null);
+    } finally {
+      setConvertCardLoading(false);
+    }
+  };
+
+  const handleConvertGetQuote = async () => {
+    const amountMajor = parseFloat(convertAmount);
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) {
+      setConvertQuote(null);
+      return;
+    }
+    setConvertQuote(null);
+    setConvertLoading(true);
+    try {
+      const token = localStorage.getItem('obeam_token');
+      const fromAmountMinor = BigInt(Math.round(amountMajor * 100));
+      const res = await fetch(`${API_BASE}/fx/quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          fromCurrency: convertFrom,
+          toCurrency: convertTo,
+          fromAmount: fromAmountMinor.toString(),
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConvertQuote({ toAmount: data.toAmount, rateUsed: data.rateUsed });
+      }
+    } catch {
+      setConvertQuote(null);
+    } finally {
+      setConvertLoading(false);
+    }
+  };
+
+  const handleExecuteConvert = async () => {
+    const amountMajor = parseFloat(convertCardAmount);
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0 || !convertCardQuote) return;
+    setExecuteConvertError(null);
+    setExecuteConvertLoading(true);
+    try {
+      const token = localStorage.getItem('obeam_token');
+      if (!token) {
+        setExecuteConvertError('Please log in again.');
+        return;
+      }
+      const fromAmountMinor = BigInt(Math.round(amountMajor * 100));
+      const res = await fetch(`${API_BASE}/ledger/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          fromCurrency: 'NGN',
+          toCurrency: 'GHS',
+          fromAmount: fromAmountMinor.toString(),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const msg = Array.isArray(err.message) ? err.message.join(' ') : (err.message || 'Convert failed.');
+        setExecuteConvertError(msg);
+        return;
+      }
+      setExecuteConvertError(null);
+      setConvertCardQuote(null);
+      setConvertCardAmount('');
+      setRefetchKey((k) => k + 1);
+    } catch {
+      setExecuteConvertError('Network error.');
+    } finally {
+      setExecuteConvertLoading(false);
+    }
+  };
 
   const fxUpdatedAgo = fxRate?.asOf
     ? (() => {
@@ -214,12 +537,7 @@ export function Dashboard() {
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
-  const formatBalance = (balance: string, currency: string) => {
-    const n = Number(balance);
-    if (currency === 'NGN') return `₦ ${(n / 100).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-    if (currency === 'GHS') return `₵ ${(n / 100).toLocaleString('en-GH', { minimumFractionDigits: 2 })}`;
-    return balance;
-  };
+  const fmtBal = (balance: string, currency: string) => formatBalance(balance, currency);
 
   if (loading) {
     return (
@@ -282,9 +600,12 @@ export function Dashboard() {
     );
   }
 
-  const navItems: { id: DashboardSection; label: string; icon: React.ReactNode }[] = [
+  const navItems: { id: DashboardSection; label: string; icon: JSX.Element }[] = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={20} /> },
     { id: 'wallets', label: 'Wallets', icon: <CreditCard size={20} /> },
+    { id: 'transfers', label: 'Transfers', icon: <Send size={20} /> },
+    { id: 'invoices', label: 'Invoices', icon: <FileText size={20} /> },
+    { id: 'kyb', label: 'Verification', icon: <Shield size={20} /> },
   ];
 
   return (
@@ -406,27 +727,12 @@ export function Dashboard() {
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-forest-900 truncate tracking-tight">
-              {section === 'overview' ? 'Overview' : 'Wallets'}
+              {{ overview: 'Overview', wallets: 'Wallets', transfers: 'Transfers', invoices: 'Invoices', kyb: 'Verification' }[section]}
             </h1>
             <p className="text-sm text-forest-900/60 truncate mt-0.5">
               {business.name} · {business.country}
             </p>
           </div>
-          {section === 'overview' && (
-            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-forest-600/20 text-forest-800 text-xs font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-forest-600 animate-pulse" />
-                Live
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-900/10 text-forest-800 text-xs font-medium">
-                <Shield size={12} />
-                CBN compliant
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-900/10 text-forest-800 text-xs font-medium">
-                AML active
-              </span>
-            </div>
-          )}
         </header>
 
         <main
@@ -448,11 +754,11 @@ export function Dashboard() {
                 className="max-w-5xl"
               >
                 <p className="text-forest-900/70 mb-4 text-[15px]">
-                  Balance → Action → Activity.
+                  At a glance: balances, live rate, and actions.
                 </p>
 
                 {/* Row 1: [ NGN ] [ GHS ] [ FX ] — 1 col mobile, 2 tablet, 3 desktop */}
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-4">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-4 items-start">
                   {wallets.map((wallet) => (
                     <motion.div
                       key={wallet.id}
@@ -463,14 +769,14 @@ export function Dashboard() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-forest-900/70">{wallet.label}</span>
                         <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-forest-900/10 text-forest-700">
-                          {wallet.currency === 'NGN' ? '₦ Naira' : '₵ Cedi'}
+                          {getCurrencySymbol(wallet.currency)} {CURRENCIES[wallet.currency]?.name ?? wallet.currency}
                         </span>
                       </div>
                       <div className="w-9 h-9 rounded-xl bg-forest-900/5 flex items-center justify-center mb-2">
                         <Wallet className="w-4 h-4 text-forest-700" />
                       </div>
                       <p className="text-2xl font-bold text-forest-900 tracking-tight">
-                        {formatBalance(wallet.balance, wallet.currency)}
+                        {fmtBal(wallet.balance, wallet.currency)}
                       </p>
                       <p className="text-xs text-forest-900/50 mt-1 font-medium">Available balance</p>
                       <button
@@ -478,7 +784,7 @@ export function Dashboard() {
                         onClick={() => setSection('wallets')}
                         className="mt-4 w-full min-h-[44px] flex items-center justify-center gap-1.5 text-xs font-semibold text-gold-600 hover:text-gold-700 transition-colors rounded-xl active:bg-forest-900/5"
                       >
-                        View transactions
+                        View in Wallets
                         <ChevronRight size={14} />
                       </button>
                     </motion.div>
@@ -518,7 +824,7 @@ export function Dashboard() {
                 )}
 
                 {/* Row 2: [ Send ] [ Convert ] — 1 col mobile, 2 tablet+ */}
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-4">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-4 items-start">
                   <motion.div
                     className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 hover:shadow-xl transition-all cursor-pointer group"
                     whileHover={{ y: -2 }}
@@ -527,24 +833,52 @@ export function Dashboard() {
                       <div className="w-10 h-10 rounded-xl bg-forest-900/10 flex items-center justify-center group-hover:bg-forest-900/15 transition-colors">
                         <Send className="w-5 h-5 text-forest-700" />
                       </div>
-                      <h3 className="font-semibold text-forest-900">Send NGN → GHS</h3>
+                      <h3 className="font-semibold text-forest-900">Send cross-border</h3>
                     </div>
-                    <p className="text-sm text-forest-900/60 mb-3">Send cross-border to suppliers or partners.</p>
+                    <p className="text-sm text-forest-900/60 mb-3">Send to suppliers or partners across Africa.</p>
+                    <div className="flex gap-2 mb-2">
+                      <select value={sendFromCurrency} onChange={(e) => { setSendFromCurrency(e.target.value); if (e.target.value === sendToCurrency) setSendToCurrency(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                        {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                      </select>
+                      <span className="flex items-center text-forest-900/40 text-xs">→</span>
+                      <select value={sendToCurrency} onChange={(e) => { setSendToCurrency(e.target.value); if (e.target.value === sendFromCurrency) setSendFromCurrency(CURRENCY_CODES.find((c) => c !== e.target.value) || 'NGN'); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                        {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                      </select>
+                    </div>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-xs text-forest-900/70">
                         <Users size={14} />
                         <span>Recent recipient</span>
                       </div>
-                      <select className="w-full rounded-lg border border-forest-900/15 bg-white/80 pl-3 pr-9 py-2 text-sm text-forest-900/80 focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:12px_12px] bg-[right_0.5rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]">
-                        <option>No saved beneficiaries</option>
+                      <select
+                        value={selectedCounterpartyId}
+                        onChange={(e) => setSelectedCounterpartyId(e.target.value)}
+                        className="w-full min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 pl-3 pr-9 py-2 text-sm text-forest-900/80 focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:12px_12px] bg-[right_0.5rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]"
+                      >
+                        <option value="">{counterparties.length === 0 ? 'No saved beneficiaries' : 'Select recipient'}</option>
+                        {counterparties.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name} · {c.country}</option>
+                        ))}
                       </select>
-                      <button type="button" className="min-h-[44px] flex items-center text-xs font-semibold text-gold-600 hover:text-gold-700 transition-colors active:text-gold-800">
-                        + Saved beneficiary quick action
+                      <button
+                        type="button"
+                        onClick={() => setAddBeneficiaryOpen(true)}
+                        className="min-h-[44px] flex items-center text-xs font-semibold text-gold-600 hover:text-gold-700 transition-colors active:text-gold-800"
+                      >
+                        + Add beneficiary
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setSendModalOpen(true); setSendQuote(null); setSendAmount(''); setSendError(null); }}
+                        disabled={!selectedCounterpartyId}
+                        className="mt-2 w-full min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold text-sm hover:bg-forest-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Send {sendFromCurrency} → {sendToCurrency}
                       </button>
                     </div>
                   </motion.div>
                   <motion.div
-                    className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 hover:shadow-xl transition-all cursor-pointer group"
+                    className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 hover:shadow-xl transition-all group"
                     whileHover={{ y: -2 }}
                   >
                     <div className="flex items-center gap-3 mb-2">
@@ -553,54 +887,86 @@ export function Dashboard() {
                       </div>
                       <h3 className="font-semibold text-forest-900">Convert currency</h3>
                     </div>
-                    <p className="text-sm text-forest-900/60">Convert between NGN and GHS at live rates.</p>
+                    <p className="text-sm text-forest-900/60 mb-3">Convert between any supported currencies at live rates.</p>
+                    {fxRate && (
+                      <p className="text-xs text-forest-900/50 mb-3">Live: 1 GHS ≈ {fxRate.rate} NGN</p>
+                    )}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-forest-900/70">Amount (NGN)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="0.01"
+                        placeholder="e.g. 10000"
+                        value={convertCardAmount}
+                        onChange={(e) => { setConvertCardAmount(e.target.value); setConvertCardQuote(null); setExecuteConvertError(null); }}
+                        className="w-full min-h-[44px] rounded-xl border border-forest-900/15 bg-white/80 pl-3 pr-3 py-2 text-sm text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleConvertCardGetQuote(); }}
+                        disabled={convertCardLoading || !convertCardAmount}
+                        className="w-full min-h-[44px] rounded-xl bg-gold-500/90 text-white font-semibold text-sm hover:bg-gold-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        {convertCardLoading ? 'Getting quote…' : 'Get quote'}
+                        {!convertCardLoading && <ChevronRight size={14} />}
+                      </button>
+                    </div>
+                    {convertCardQuote && (
+                      <>
+                        <div className="mt-3 rounded-xl bg-forest-900/5 border border-forest-900/10 p-3 text-sm">
+                          <p className="text-forest-900/70 text-xs">Rate: {convertCardQuote.rateUsed}</p>
+                          <p className="font-semibold text-forest-900 mt-0.5">You get: ₵ {(Number(convertCardQuote.toAmount) / 100).toLocaleString()} GHS</p>
+                        </div>
+                        {executeConvertError && <p className="mt-2 text-sm text-red-600">{executeConvertError}</p>}
+                        <button
+                          type="button"
+                          onClick={handleExecuteConvert}
+                          disabled={executeConvertLoading}
+                          className="mt-2 w-full min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold text-sm hover:bg-forest-800 disabled:opacity-60 transition-colors"
+                        >
+                          {executeConvertLoading ? 'Converting…' : 'Execute convert'}
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setConvertModalOpen(true); setConvertQuote(null); setConvertAmount(''); setConvertFrom('NGN'); setConvertTo('GHS'); }}
+                      className="mt-3 w-full text-xs font-medium text-gold-600 hover:text-gold-700 text-center"
+                    >
+                      More options (other direction) →
+                    </button>
                   </motion.div>
                 </div>
 
-                {/* Row 3: [ Activity ] — last 5 only, one screen; table scrolls on small screens */}
+                {/* Recent activity — teaser only; full activity lives in Wallets */}
                 <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Receipt className="w-4 h-4 text-forest-700" />
-                    <h2 className="text-base font-semibold text-forest-900">Activity</h2>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-base font-semibold text-forest-900">Recent activity</h2>
+                    <button
+                      type="button"
+                      onClick={() => setSection('wallets')}
+                      className="text-xs font-semibold text-gold-600 hover:text-gold-700"
+                    >
+                      View all in Wallets →
+                    </button>
                   </div>
-                  <div className="overflow-x-auto rounded-xl" style={{ WebkitOverflowScrolling: 'touch' }}>
-                    {activityLoading ? (
-                      <p className="text-sm text-forest-900/60 py-3">Loading…</p>
-                    ) : activity.length > 0 ? (
-                      <table className="w-full text-sm min-w-[420px]">
-                        <thead>
-                          <tr className="text-left text-forest-900/60 border-b border-forest-900/10">
-                            <th className="pb-2 pt-0.5 font-medium">Date</th>
-                            <th className="pb-2 pt-0.5 font-medium">Type</th>
-                            <th className="pb-2 pt-0.5 font-medium text-right">Amount</th>
-                            <th className="pb-2 pt-0.5 font-medium">Status</th>
-                            <th className="pb-2 pt-0.5 font-medium">Ref</th>
-                            <th className="pb-2 pt-0.5 font-medium">Currency</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {activity.slice(0, 5).map((item) => (
-                            <tr key={item.id} className="border-b border-forest-900/5 last:border-0">
-                              <td className="py-2 text-forest-900/80">{item.date}</td>
-                              <td className="py-2 text-forest-900/80">{item.type}</td>
-                              <td className="py-2 text-right font-medium text-forest-900">{item.amount}</td>
-                              <td className="py-2">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-600/15 text-forest-800 text-xs font-medium">
-                                  {item.status}
-                                </span>
-                              </td>
-                              <td className="py-2 font-mono text-xs text-forest-900/70">{item.ref ?? '—'}</td>
-                              <td className="py-2 text-forest-900/70">{item.currency}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <p className="text-forest-900/60 text-sm py-4 text-center">
-                        No transactions yet. Fund your wallet to begin.
-                      </p>
-                    )}
-                  </div>
+                  {activityLoading ? (
+                    <p className="text-sm text-forest-900/60 py-3">Loading…</p>
+                  ) : activity.length > 0 ? (
+                    <ul className="space-y-2">
+                      {activity.slice(0, 3).map((item) => (
+                        <li key={item.id} className="flex items-center justify-between text-sm">
+                          <span className="text-forest-900/80">{item.date}</span>
+                          <span className="text-forest-900/70">{item.type}</span>
+                          <span className="font-medium text-forest-900">{item.amount} {item.currency}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-forest-900/60 text-sm py-3">No transactions yet. Top up in Wallets to begin.</p>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -614,7 +980,7 @@ export function Dashboard() {
                 transition={{ duration: 0.2 }}
                 className="max-w-5xl"
               >
-                <p className="text-forest-900/70 mb-6 text-[15px]">Balance, top-up, and activity. Money management lives here.</p>
+                <p className="text-forest-900/70 mb-6 text-[15px]">Balance, top-up, and full activity.</p>
 
                 <div className="grid gap-4 sm:grid-cols-2 mb-6">
                   {wallets.map((wallet) => (
@@ -625,14 +991,14 @@ export function Dashboard() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-semibold text-forest-900">{wallet.label}</span>
                         <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-forest-900/10 text-forest-700">
-                          {wallet.currency === 'NGN' ? '₦ Naira' : '₵ Cedi'}
+                          {getCurrencySymbol(wallet.currency)} {CURRENCIES[wallet.currency]?.name ?? wallet.currency}
                         </span>
                       </div>
                       <div className="w-9 h-9 rounded-xl bg-forest-900/5 flex items-center justify-center mb-2">
                         <Wallet className="w-4 h-4 text-forest-700" />
                       </div>
                       <p className="text-2xl font-bold text-forest-900 tracking-tight">
-                        {formatBalance(wallet.balance, wallet.currency)}
+                        {fmtBal(wallet.balance, wallet.currency)}
                       </p>
                       <p className="text-xs text-forest-900/60 mt-1">Available balance</p>
                     </motion.div>
@@ -648,11 +1014,10 @@ export function Dashboard() {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <select
                       value={topUpCurrency}
-                      onChange={(e) => setTopUpCurrency(e.target.value as 'NGN' | 'GHS')}
+                      onChange={(e) => setTopUpCurrency(e.target.value)}
                       className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]"
                     >
-                      <option value="NGN">NGN</option>
-                      <option value="GHS">GHS</option>
+                      {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c} — {CURRENCIES[c]?.name}</option>)}
                     </select>
                     <input
                       type="number"
@@ -729,9 +1094,348 @@ export function Dashboard() {
                 </div>
               </motion.div>
             )}
+
+            {section === 'transfers' && (
+              <motion.div
+                key="transfers"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+                className="max-w-5xl"
+              >
+                <p className="text-forest-900/70 mb-6 text-[15px]">Your cross-border transfers.</p>
+                <div className="flex gap-4 flex-col lg:flex-row items-start">
+                  <div className="flex-1 min-w-0 w-full lg:w-auto bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5">
+                    <h2 className="text-lg font-semibold text-forest-900 mb-4">Transfers</h2>
+                    {transfersLoading ? (
+                      <p className="text-sm text-forest-900/60 py-4">Loading…</p>
+                    ) : transfersList.length === 0 ? (
+                      <p className="text-sm text-forest-900/60 py-4">No transfers yet. Use Send NGN → GHS from Overview to create one.</p>
+                    ) : (
+                      <div className="overflow-x-auto rounded-xl" style={{ WebkitOverflowScrolling: 'touch' }}>
+                        <table className="w-full text-sm min-w-[400px]">
+                          <thead>
+                            <tr className="text-left text-forest-900/60 border-b border-forest-900/10">
+                              <th className="pb-2 pt-0.5 font-medium">Date</th>
+                              <th className="pb-2 pt-0.5 font-medium">To</th>
+                              <th className="pb-2 pt-0.5 font-medium text-right">Amount</th>
+                              <th className="pb-2 pt-0.5 font-medium">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {transfersList.map((t) => (
+                              <tr
+                                key={t.id}
+                                className={`border-b border-forest-900/5 last:border-0 cursor-pointer hover:bg-forest-900/5 ${selectedTransferId === t.id ? 'bg-forest-900/10' : ''}`}
+                                onClick={() => setSelectedTransferId(selectedTransferId === t.id ? null : t.id)}
+                              >
+                                <td className="py-2 text-forest-900/80">{new Date(t.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                                <td className="py-2 text-forest-900/80">{t.counterparty?.name ?? '—'}</td>
+                                <td className="py-2 text-right font-medium text-forest-900">{t.fromCurrency} {(Number(t.fromAmount) / 100).toLocaleString()} → {t.toCurrency} {(Number(t.toAmount) / 100).toLocaleString()}</td>
+                                <td className="py-2">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-600/15 text-forest-800 text-xs font-medium">{t.status}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                  {transferDetail && (
+                    <div className="lg:w-80 flex-shrink-0 bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5">
+                      <h2 className="text-base font-semibold text-forest-900 mb-3">Transfer details</h2>
+                      <dl className="space-y-2 text-sm">
+                        <div><dt className="text-forest-900/60">ID</dt><dd className="font-mono text-forest-900/80 truncate" title={transferDetail.id}>{transferDetail.id.slice(0, 8)}…</dd></div>
+                        <div><dt className="text-forest-900/60">Recipient</dt><dd className="text-forest-900">{transferDetail.counterparty?.name ?? '—'} ({transferDetail.counterparty?.country ?? '—'})</dd></div>
+                        <div><dt className="text-forest-900/60">Amount</dt><dd className="text-forest-900">{transferDetail.fromCurrency} {(Number(transferDetail.fromAmount) / 100).toLocaleString()} → {transferDetail.toCurrency} {(Number(transferDetail.toAmount) / 100).toLocaleString()}</dd></div>
+                        <div><dt className="text-forest-900/60">Fee</dt><dd className="text-forest-900">{(Number(transferDetail.feeAmount) / 100).toLocaleString()}</dd></div>
+                        <div><dt className="text-forest-900/60">Status</dt><dd><span className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-600/15 text-forest-800 text-xs font-medium">{transferDetail.status}</span></dd></div>
+                        <div><dt className="text-forest-900/60">Created</dt><dd className="text-forest-900/80">{new Date(transferDetail.createdAt).toLocaleString()}</dd></div>
+                      </dl>
+                      {(transferDetail.status === 'DRAFT' || transferDetail.status === 'PENDING_FUNDS') ? (
+                        <p className="mt-3 text-xs text-forest-900/60">You can cancel only while the transfer is DRAFT or PENDING_FUNDS. Once it’s Processing or Settled, it cannot be cancelled.</p>
+                      ) : (transferDetail.status !== 'CANCELLED' && transferDetail.status !== 'FAILED') ? (
+                        <p className="mt-3 text-xs text-forest-900/60">This transfer can no longer be cancelled (only DRAFT or PENDING_FUNDS can be cancelled).</p>
+                      ) : null}
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {(transferDetail.status === 'DRAFT' || transferDetail.status === 'PENDING_FUNDS') && (
+                          <button
+                            type="button"
+                            onClick={handleCancelTransfer}
+                            disabled={cancelTransferLoading}
+                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-red-500/30 text-red-700 hover:bg-red-500/10 disabled:opacity-60"
+                          >
+                            {cancelTransferLoading ? 'Cancelling…' : 'Cancel transfer'}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => setSelectedTransferId(null)} className="text-xs font-medium text-gold-600 hover:text-gold-700">Close detail</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+            {section === 'kyb' && (
+              <motion.div
+                key="kyb"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+                className="max-w-3xl"
+              >
+                <p className="text-forest-900/70 mb-6 text-[15px]">Verify your business to unlock full features and higher limits.</p>
+
+                {business.status === 'ACTIVE' ? (
+                  <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-green-500/15 flex items-center justify-center">
+                        <CheckCircle2 className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-forest-900">Verified</h2>
+                        <p className="text-sm text-forest-900/60">Your business has been verified. All features are unlocked.</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">Verification pending</p>
+                        <p className="text-xs text-amber-700 mt-1">Upload your business documents to complete verification. This unlocks higher transfer limits and faster settlements.</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {[
+                        { type: 'CAC_CERTIFICATE', label: 'CAC Certificate', desc: 'Certificate of incorporation from the Corporate Affairs Commission' },
+                        { type: 'UTILITY_BILL', label: 'Utility Bill', desc: 'Recent utility bill showing business address (within 3 months)' },
+                        { type: 'BANK_STATEMENT', label: 'Bank Statement', desc: 'Business bank statement from the last 3 months' },
+                        { type: 'ID_DOCUMENT', label: 'Director ID', desc: 'Government-issued ID of a company director' },
+                      ].map((doc) => (
+                        <div key={doc.type} className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-forest-900/5 flex items-center justify-center flex-shrink-0">
+                                <FileText className="w-5 h-5 text-forest-700" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-forest-900">{doc.label}</h3>
+                                <p className="text-xs text-forest-900/60 mt-1">{doc.desc}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-amber-500" />
+                              <span className="text-xs text-amber-600 font-medium">Pending</span>
+                            </div>
+                          </div>
+                          <label className="mt-4 flex items-center justify-center gap-2 w-full min-h-[44px] rounded-xl border-2 border-dashed border-forest-900/15 bg-forest-900/[0.02] text-sm font-medium text-forest-900/60 hover:border-gold-500/40 hover:text-forest-900/80 hover:bg-forest-900/[0.04] cursor-pointer transition-all">
+                            <Upload className="w-4 h-4" />
+                            Upload document
+                            <input type="file" className="sr-only" accept=".pdf,.jpg,.jpeg,.png" onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const token = localStorage.getItem('obeam_token');
+                              if (!token) return;
+                              const formData = new FormData();
+                              formData.append('file', file);
+                              formData.append('documentType', doc.type);
+                              try {
+                                await fetch(`${API_BASE}/kyb/documents`, {
+                                  method: 'POST',
+                                  headers: { Authorization: `Bearer ${token}` },
+                                  body: formData,
+                                });
+                              } catch { /* handled */ }
+                            }} />
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            )}
+
+            {section === 'invoices' && (
+              <motion.div
+                key="invoices"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+                className="max-w-5xl"
+              >
+                <p className="text-forest-900/70 mb-6 text-[15px]">Create and manage invoices for your business.</p>
+                <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-forest-900">Invoices</h2>
+                    <span className="text-xs text-forest-900/50 bg-forest-900/5 px-3 py-1 rounded-full">Coming soon</span>
+                  </div>
+                  <p className="text-sm text-forest-900/60">
+                    Create invoices, send payment links, and track when your clients pay. Invoice management is ready in the API — UI launching soon.
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl bg-forest-900/5 border border-forest-900/8 p-4">
+                      <p className="text-sm font-medium text-forest-900">Create invoices</p>
+                      <p className="text-xs text-forest-900/50 mt-1">Generate professional invoices in any currency</p>
+                    </div>
+                    <div className="rounded-xl bg-forest-900/5 border border-forest-900/8 p-4">
+                      <p className="text-sm font-medium text-forest-900">Payment links</p>
+                      <p className="text-xs text-forest-900/50 mt-1">Share links that let clients pay directly</p>
+                    </div>
+                    <div className="rounded-xl bg-forest-900/5 border border-forest-900/8 p-4">
+                      <p className="text-sm font-medium text-forest-900">Track payments</p>
+                      <p className="text-xs text-forest-900/50 mt-1">See when invoices are viewed and paid</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Add beneficiary modal */}
+      {addBeneficiaryOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => !addBeneficiaryLoading && setAddBeneficiaryOpen(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-xl p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-forest-900 mb-4">Add beneficiary</h3>
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Name"
+                value={newBeneficiaryName}
+                onChange={(e) => setNewBeneficiaryName(e.target.value)}
+                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
+              />
+              <select
+                value={newBeneficiaryCountry}
+                onChange={(e) => setNewBeneficiaryCountry(e.target.value)}
+                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500"
+              >
+                {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name} ({c.code})</option>)}
+              </select>
+              <select
+                value={newBeneficiaryPayoutType}
+                onChange={(e) => setNewBeneficiaryPayoutType(e.target.value)}
+                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500"
+              >
+                <option value="BANK">Bank</option>
+                <option value="MOBILE">Mobile money</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Account number or mobile number"
+                value={newBeneficiaryPayoutRef}
+                onChange={(e) => setNewBeneficiaryPayoutRef(e.target.value)}
+                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
+              />
+            </div>
+            {addBeneficiaryError && <p className="mt-2 text-sm text-red-600">{addBeneficiaryError}</p>}
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={() => !addBeneficiaryLoading && setAddBeneficiaryOpen(false)} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 text-forest-900 font-medium">Cancel</button>
+              <button type="button" onClick={handleAddBeneficiary} disabled={addBeneficiaryLoading} className="flex-1 min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold disabled:opacity-60">{(addBeneficiaryLoading) ? 'Adding…' : 'Add'}</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Send NGN → GHS modal */}
+      {sendModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => !sendLoading && setSendModalOpen(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-xl p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-forest-900 mb-4">Send {sendFromCurrency} → {sendToCurrency}</h3>
+            <p className="text-sm text-forest-900/60 mb-3">Recipient: {counterparties.find((c) => c.id === selectedCounterpartyId)?.name ?? '—'}</p>
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-forest-900">Amount ({sendFromCurrency})</label>
+              <input
+                type="number"
+                min="1"
+                step="0.01"
+                placeholder="0.00"
+                value={sendAmount}
+                onChange={(e) => { setSendAmount(e.target.value); setSendQuote(null); }}
+                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
+              />
+              {sendQuote && (
+                <div className="rounded-xl bg-forest-900/5 border border-forest-900/10 p-3 text-sm">
+                  <p className="text-forest-900/70">Rate: {sendQuote.rateUsed}</p>
+                  <p className="font-semibold text-forest-900">They receive: {getCurrencySymbol(sendToCurrency)} {(Number(sendQuote.toAmount) / 100).toLocaleString()} {sendToCurrency}</p>
+                </div>
+              )}
+            </div>
+            {sendError && <p className="mt-2 text-sm text-red-600">{sendError}</p>}
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={() => !sendLoading && setSendModalOpen(false)} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 text-forest-900 font-medium">Cancel</button>
+              {!sendQuote ? (
+                <button type="button" onClick={handleSendGetQuote} disabled={sendLoading || !sendAmount} className="flex-1 min-h-[44px] rounded-xl bg-gold-500 text-white font-semibold disabled:opacity-60">{(sendLoading) ? 'Getting quote…' : 'Get quote'}</button>
+              ) : (
+                <button type="button" onClick={handleSendConfirm} disabled={sendLoading} className="flex-1 min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold disabled:opacity-60">{(sendLoading) ? 'Sending…' : 'Confirm send'}</button>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Convert currency modal */}
+      {convertModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setConvertModalOpen(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-xl p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-forest-900 mb-4">Convert currency</h3>
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <select value={convertFrom} onChange={(e) => { setConvertFrom(e.target.value); if (e.target.value === convertTo) setConvertTo(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); setConvertQuote(null); }} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900">
+                  {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                </select>
+                <span className="flex items-center text-forest-900/60">→</span>
+                <select value={convertTo} onChange={(e) => { setConvertTo(e.target.value); if (e.target.value === convertFrom) setConvertFrom(CURRENCY_CODES.find((c) => c !== e.target.value) || 'NGN'); setConvertQuote(null); }} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900">
+                  {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                </select>
+              </div>
+              <label className="block text-sm font-medium text-forest-900">Amount ({convertFrom})</label>
+              <input
+                type="number"
+                min="1"
+                step="0.01"
+                placeholder="0.00"
+                value={convertAmount}
+                onChange={(e) => { setConvertAmount(e.target.value); setConvertQuote(null); }}
+                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
+              />
+              {convertQuote && (
+                <div className="rounded-xl bg-forest-900/5 border border-forest-900/10 p-3 text-sm">
+                  <p className="text-forest-900/70">Rate: {convertQuote.rateUsed}</p>
+                  <p className="font-semibold text-forest-900">You get: {getCurrencySymbol(convertTo)} {(Number(convertQuote.toAmount) / 100).toLocaleString()} {convertTo}</p>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={() => setConvertModalOpen(false)} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 text-forest-900 font-medium">Close</button>
+              <button type="button" onClick={handleConvertGetQuote} disabled={convertLoading || !convertAmount} className="flex-1 min-h-[44px] rounded-xl bg-gold-500 text-white font-semibold disabled:opacity-60">{(convertLoading) ? 'Getting quote…' : 'Get quote'}</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

@@ -1,6 +1,5 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-import { Check, X, Zap } from 'lucide-react';
+import { Check, Zap } from 'lucide-react';
 export function Pricing() {
   return (
     <section id="pricing" className="py-12 sm:py-16 lg:py-20 bg-cream-50 relative">

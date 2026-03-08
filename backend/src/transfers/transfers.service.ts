@@ -2,7 +2,8 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException 
 import { PrismaService } from '../prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { RequestUser } from '../auth/get-user.decorator';
-import { CurrencyCode } from '@prisma/client';
+import { CurrencyCode, TransferStatus } from '@prisma/client';
+import { isValidCurrency, CURRENCY_CODES } from '../shared/currencies';
 
 @Injectable()
 export class TransfersService {
@@ -22,13 +23,13 @@ export class TransfersService {
       feeAmount?: string;
     },
   ) {
-    const fromCurrency = (body.fromCurrency?.toUpperCase() || '') as CurrencyCode;
-    const toCurrency = (body.toCurrency?.toUpperCase() || '') as CurrencyCode;
-    if (fromCurrency !== 'NGN' && fromCurrency !== 'GHS') {
-      throw new BadRequestException('Invalid fromCurrency. Use NGN or GHS.');
+    const fromCurrency = (body.fromCurrency?.toUpperCase() || '') as string;
+    const toCurrency = (body.toCurrency?.toUpperCase() || '') as string;
+    if (!isValidCurrency(fromCurrency)) {
+      throw new BadRequestException(`Invalid fromCurrency. Supported: ${CURRENCY_CODES.join(', ')}`);
     }
-    if (toCurrency !== 'NGN' && toCurrency !== 'GHS') {
-      throw new BadRequestException('Invalid toCurrency. Use NGN or GHS.');
+    if (!isValidCurrency(toCurrency)) {
+      throw new BadRequestException(`Invalid toCurrency. Supported: ${CURRENCY_CODES.join(', ')}`);
     }
     let fromAmount: bigint;
     let toAmount: bigint;
@@ -126,6 +127,97 @@ export class TransfersService {
       throw new ForbiddenException('Not your transfer.');
     }
     return this.toResponse(transfer);
+  }
+
+  /** Cancel a transfer. DRAFT: just update status. PENDING_FUNDS: reverse reserve then CANCELLED. */
+  async cancel(user: RequestUser, transferId: string) {
+    const transfer = await this.prisma.transfer.findUnique({
+      where: { id: transferId },
+    });
+    if (!transfer) {
+      throw new NotFoundException('Transfer not found.');
+    }
+    if (transfer.businessId !== user.businessId) {
+      throw new ForbiddenException('Not your transfer.');
+    }
+    if (transfer.status !== 'DRAFT' && transfer.status !== 'PENDING_FUNDS') {
+      throw new BadRequestException(`Only DRAFT or PENDING_FUNDS transfers can be cancelled. Current: ${transfer.status}.`);
+    }
+
+    if (transfer.status === 'PENDING_FUNDS') {
+      await this.ledger.reverseReserveForTransfer({
+        transferId: transfer.id,
+        businessId: transfer.businessId,
+        fromCurrency: transfer.fromCurrency as CurrencyCode,
+        fromAmount: transfer.fromAmount,
+      });
+    }
+
+    await this.prisma.transfer.update({
+      where: { id: transferId },
+      data: { status: 'CANCELLED' },
+    });
+
+    const updated = await this.prisma.transfer.findUniqueOrThrow({
+      where: { id: transferId },
+      include: { counterparty: { select: { name: true, country: true } } },
+    });
+    return this.toResponse(updated);
+  }
+
+  /** Admin: list all transfers, optional status filter. */
+  async listAllForAdmin(status?: string) {
+    const where = status && status.length > 0 ? { status: status as TransferStatus } : {};
+    const transfers = await this.prisma.transfer.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        counterparty: { select: { name: true, country: true } },
+        business: { select: { name: true } },
+      },
+    });
+    return {
+      transfers: transfers.map((t) => ({
+        ...this.toResponse(t),
+        businessName: (t as { business?: { name: string } }).business?.name,
+      })),
+    };
+  }
+
+  /** Admin: set transfer status to PROCESSING (only from PENDING_FUNDS). */
+  async markProcessing(transferId: string) {
+    const transfer = await this.prisma.transfer.findUnique({ where: { id: transferId } });
+    if (!transfer) throw new NotFoundException('Transfer not found.');
+    if (transfer.status !== 'PENDING_FUNDS') {
+      throw new BadRequestException(`Only PENDING_FUNDS can be marked PROCESSING. Current: ${transfer.status}.`);
+    }
+    await this.prisma.transfer.update({
+      where: { id: transferId },
+      data: { status: 'PROCESSING' },
+    });
+    const updated = await this.prisma.transfer.findUniqueOrThrow({
+      where: { id: transferId },
+      include: { counterparty: { select: { name: true, country: true } } },
+    });
+    return this.toResponse(updated);
+  }
+
+  /** Admin: set transfer status to FAILED. */
+  async markFailed(transferId: string) {
+    const transfer = await this.prisma.transfer.findUnique({ where: { id: transferId } });
+    if (!transfer) throw new NotFoundException('Transfer not found.');
+    if (transfer.status === 'SETTLED' || transfer.status === 'CANCELLED') {
+      throw new BadRequestException(`Cannot mark SETTLED or CANCELLED as FAILED.`);
+    }
+    await this.prisma.transfer.update({
+      where: { id: transferId },
+      data: { status: 'FAILED' },
+    });
+    const updated = await this.prisma.transfer.findUniqueOrThrow({
+      where: { id: transferId },
+      include: { counterparty: { select: { name: true, country: true } } },
+    });
+    return this.toResponse(updated);
   }
 
   private toResponse(transfer: {

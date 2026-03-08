@@ -1,9 +1,9 @@
-import React, { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { useRef } from 'react';
+import { motion, useScroll } from 'framer-motion';
 
 export function HowItWorks() {
   const containerRef = useRef(null);
-  const { scrollYProgress } = useScroll({
+  useScroll({
     target: containerRef,
     offset: ['start center', 'end center']
   });

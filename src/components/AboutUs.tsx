@@ -1,13 +1,9 @@
-import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Users, Target, Zap } from 'lucide-react';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 
 export function AboutUs() {
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
 
   const values = [
     {
@@ -36,9 +32,9 @@ export function AboutUs() {
     <motion.div
       className="min-h-screen font-sans text-gray-900 overflow-x-hidden"
       style={{ backgroundColor: '#F5F1E9' }}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
     >
       <Navbar />
       

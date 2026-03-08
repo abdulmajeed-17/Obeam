@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   motion,
   useScroll,
@@ -10,28 +10,7 @@ export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { scrollY } = useScroll();
   const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('obeam_token');
-  
-  // Match hero section warm beige - no white rectangle
-  const backgroundColor = useTransform(
-    scrollY,
-    [0, 100],
-    ['rgba(245, 238, 219, 1)', 'rgba(245, 238, 219, 1)']
-  );
-  const backdropBlur = useTransform(
-    scrollY,
-    [0, 100],
-    [0, 0]
-  );
-  const shadowOpacity = useTransform(
-    scrollY,
-    [0, 100],
-    [0, 0.1]
-  );
-  const borderOpacity = useTransform(
-    scrollY,
-    [0, 100],
-    [0, 0.5]
-  );
+
   const paddingY = useTransform(
     scrollY,
     [0, 100],

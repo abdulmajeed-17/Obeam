@@ -2,9 +2,10 @@ import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma.service';
-import { CurrencyCode, AccountType } from '@prisma/client';
+import { AccountType } from '@prisma/client';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { CURRENCY_CODES, getCurrencyMeta } from '../shared/currencies';
 
 const SALT_ROUNDS = 10;
 
@@ -42,22 +43,13 @@ export class AuthService {
       });
 
       await tx.account.createMany({
-        data: [
-          {
-            businessId: business.id,
-            currency: CurrencyCode.NGN,
-            type: AccountType.CUSTOMER_WALLET,
-            label: 'Wallet NGN',
-            isPlatform: false,
-          },
-          {
-            businessId: business.id,
-            currency: CurrencyCode.GHS,
-            type: AccountType.CUSTOMER_WALLET,
-            label: 'Wallet GHS',
-            isPlatform: false,
-          },
-        ],
+        data: CURRENCY_CODES.map((code) => ({
+          businessId: business.id,
+          currency: code,
+          type: AccountType.CUSTOMER_WALLET,
+          label: `Wallet ${getCurrencyMeta(code).name}`,
+          isPlatform: false,
+        })),
       });
 
       return { user, business };

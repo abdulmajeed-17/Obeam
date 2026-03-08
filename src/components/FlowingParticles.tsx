@@ -1,5 +1,3 @@
-import React from 'react';
-
 /**
  * Soft flowing particle grid — capital flow / financial bloodstream.
  * Faint horizontal particles, very slow, very subtle.

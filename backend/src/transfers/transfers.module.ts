@@ -8,5 +8,6 @@ import { TransfersService } from './transfers.service';
   imports: [PrismaModule, LedgerModule],
   controllers: [TransfersController],
   providers: [TransfersService],
+  exports: [TransfersService],
 })
 export class TransfersModule {}

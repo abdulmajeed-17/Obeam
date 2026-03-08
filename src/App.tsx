@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
@@ -13,6 +13,8 @@ import { Footer } from './components/Footer';
 import { AboutUs } from './components/AboutUs';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
+import { Admin } from './components/Admin';
+import ErrorBoundary from './components/ErrorBoundary';
 
 export function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -21,6 +23,7 @@ export function App() {
     const path = window.location.pathname;
     if (path === '/about') setCurrentPage('about');
     else if (path === '/dashboard') setCurrentPage('dashboard');
+    else if (path === '/admin') setCurrentPage('admin');
     else if (path === '/signup' || path === '/login') setCurrentPage(path.slice(1));
     else setCurrentPage('home');
 
@@ -33,6 +36,7 @@ export function App() {
       const path = window.location.pathname;
       if (path === '/about') setCurrentPage('about');
       else if (path === '/dashboard') setCurrentPage('dashboard');
+      else if (path === '/admin') setCurrentPage('admin');
       else if (path === '/signup' || path === '/login') setCurrentPage(path.slice(1));
       else setCurrentPage('home');
     };
@@ -40,6 +44,10 @@ export function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [currentPage]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -67,6 +75,12 @@ export function App() {
         setCurrentPage('dashboard');
         return;
       }
+      if (href === '/admin') {
+        e.preventDefault();
+        window.history.pushState({}, '', '/admin');
+        setCurrentPage('admin');
+        return;
+      }
       if (href === '/' || href === '') {
         e.preventDefault();
         if (currentPage !== 'home') {
@@ -84,18 +98,10 @@ export function App() {
   }, [currentPage]);
 
   return (
-    <AnimatePresence mode="wait">
-      {currentPage === 'about' ? (
-        <motion.div
-          key="about"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-          className="min-h-screen"
-        >
-          <AboutUs />
-        </motion.div>
+    <ErrorBoundary>
+      <AnimatePresence mode="wait">
+        {currentPage === 'about' ? (
+        <AboutUs key="about" />
       ) : currentPage === 'signup' || currentPage === 'login' ? (
         <motion.div
           key="auth"
@@ -118,6 +124,8 @@ export function App() {
         >
           <Dashboard />
         </motion.div>
+      ) : currentPage === 'admin' ? (
+        <Admin />
       ) : (
         <motion.div
           key="home"
@@ -141,7 +149,8 @@ export function App() {
           </main>
           <Footer />
         </motion.div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </ErrorBoundary>
   );
 }

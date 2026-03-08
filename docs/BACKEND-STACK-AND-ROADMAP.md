@@ -42,25 +42,31 @@
 - [x] User auth (signup, login, refresh, JWT)
 - [x] Business creation (on signup + GET/PATCH /business/me)
 - [x] Wallet (account) creation per business per currency (on signup + GET /wallets, balance, ledger)
-- [ ] Internal ledger transfers (double-entry)
+- [x] Internal ledger transfers (double-entry: top-up, reserve for transfer, FX conversion)
 
 ## Phase 2 – FX Engine
 
-- [ ] Store live FX rates (manual or provider)
-- [ ] Apply spread
-- [ ] FX quote endpoint: `POST /fx/quote` (fromAmount → quoteAmount, rateUsed, expiresAt)
+- [x] Store live FX rates (manual seed + optional sync from ExchangeRate-API)
+- [x] FX quote endpoint: `POST /fx/quote` (fromAmount → toAmount, rateUsed, expiresAt)
+- [x] Execute convert: `POST /ledger/convert` (debit from-currency wallet, credit to-currency wallet, FX_CONVERSION journal entry)
 
 ## Phase 3 – Simulated Corridor
 
-- [ ] Naira wallet + Cedis wallet
-- [ ] Transfer request (create → confirm → reserve funds)
-- [ ] Status flow: DRAFT → PENDING_FUNDS → QUEUED → PROCESSING → SETTLED
+- [x] Naira wallet + Cedis wallet
+- [x] Counterparties (create, list, get by id)
+- [x] Transfer request (create → confirm → reserve funds)
+- [x] Status flow: DRAFT → PENDING_FUNDS → QUEUED → PROCESSING → SETTLED
+- [x] Transfers list + detail (GET /transfers, GET /transfers/:id) and dashboard UI
 
 ## Phase 4 – Admin Panel
 
-- [ ] List transfers (filter by status)
-- [ ] Adjust FX (manual rate entry)
-- [ ] Approve / mark settled (simulate payout, ledger settle)
+- [x] List transfers (filter by status): `GET /admin/transfers?status=...` (header `X-Admin-Secret`)
+- [x] Mark processing: `POST /admin/transfers/:id/mark-processing` (PENDING_FUNDS → PROCESSING)
+- [x] Mark settled: `POST /admin/transfers/:id/mark-settled` (ledger settle: Clearing NGN → Treasury NGN, Treasury GHS → Clearing GHS; status → SETTLED)
+- [x] Mark failed: `POST /admin/transfers/:id/mark-failed`
+- [x] Admin UI: `/admin` page (list transfers, filter, Mark processing / Settle / Fail)
+- [x] Cancel transfer in dashboard: Transfers detail → Cancel transfer (DRAFT or PENDING_FUNDS)
+- [ ] Adjust FX (manual rate entry) — optional
 
 ---
 
@@ -91,7 +97,12 @@
 
 ### FX
 - `GET /fx/rate?base=NGN&quote=GHS`
-- `POST /fx/quote` — Body: `{ fromCurrency, toCurrency, fromAmount }` → `{ quoteAmount, rateUsed, spreadBps, expiresAt, quoteId }`
+- `POST /fx/quote` — Body: `{ fromCurrency, toCurrency, fromAmount }` → `{ toAmount, rateUsed, expiresAt, quoteId }`
+- `GET /fx/sync` — Sync rates from external feed (cron)
+
+### Ledger
+- `POST /ledger/top-up` — Body: `{ currency, amount }` (minor units)
+- `POST /ledger/convert` — Body: `{ fromCurrency, toCurrency, fromAmount }` (minor units); uses latest FX rate, debits from wallet, credits to wallet
 
 ### Transfers
 - `POST /transfers` (create draft)
@@ -123,11 +134,13 @@
 
 ## Minimal V1 (Build First)
 
-1. Auth + business creation
-2. Create NGN + GHS wallets for each business
-3. Ledger endpoints to show balances
-4. FX quote endpoint (manual rate ok)
-5. Transfer create + confirm (reserve funds in ledger)
-6. Admin “settle” action (simulate payout, ledger settle)
+1. [x] Auth + business creation
+2. [x] Create NGN + GHS wallets for each business
+3. [x] Ledger endpoints to show balances
+4. [x] FX quote endpoint (manual rate ok; demo rates in seed)
+5. [x] Transfer create + confirm (reserve funds in ledger)
+6. [x] Execute convert (NGN → GHS in-app; POST /ledger/convert)
+7. [x] Transfers list + detail (dashboard section + GET /transfers, GET /transfers/:id)
+8. [x] Admin list + mark processing/settled/failed; ledger settle; cancel transfer (`POST /transfers/:id/cancel`)
 
 That’s a legit end-to-end MVP with real accounting.

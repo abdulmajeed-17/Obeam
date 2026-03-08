@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { ArrowRight, PlayCircle } from 'lucide-react';
 
@@ -35,7 +35,6 @@ export function Hero() {
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 1], [1, 0.8]);
   const yCard1 = useTransform(scrollYProgress, [0, 1], [0, -100]);
-  const yCard2 = useTransform(scrollYProgress, [0, 1], [0, -50]);
 
   useEffect(() => {
     const t = setInterval(() => {

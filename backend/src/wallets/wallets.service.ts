@@ -131,6 +131,11 @@ export class WalletsService {
       if (row.direction === 'DEBIT') debits += sum;
       else credits += sum;
     }
-    return debits - credits;
+
+    // For wallets and other asset-style accounts we treat:
+    // - CREDIT as money in
+    // - DEBIT as money out
+    // so effective balance is credits - debits.
+    return credits - debits;
   }
 }

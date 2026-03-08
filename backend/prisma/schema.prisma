@@ -13,6 +13,11 @@ datasource db {
 enum CurrencyCode {
   NGN
   GHS
+  KES
+  ZAR
+  XOF
+  USD
+  GBP
 
   @@map("currency_code")
 }
@@ -73,6 +78,7 @@ model Business {
   fxTrades   FxTrade[]
   transfers  Transfer[]
   auditLogs  AuditLog[]
+  invoices   Invoice[]
 
   @@map("businesses")
 }
@@ -103,6 +109,7 @@ model Counterparty {
   createdAt  DateTime @default(now()) @map("created_at")
   business   Business @relation(fields: [businessId], references: [id])
   transfers  Transfer[]
+  invoices   Invoice[]
 
   @@map("counterparties")
 }
@@ -212,4 +219,36 @@ model AuditLog {
   business    Business? @relation(fields: [businessId], references: [id])
 
   @@map("audit_logs")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PAID
+  OVERDUE
+  CANCELLED
+
+  @@map("invoice_status")
+}
+
+model Invoice {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  businessId      String        @map("business_id") @db.Uuid
+  counterpartyId  String        @map("counterparty_id") @db.Uuid
+  invoiceNumber   String        @unique @map("invoice_number")
+  currency        CurrencyCode
+  amount          BigInt
+  description     String?
+  dueDate         DateTime?     @map("due_date")
+  status          InvoiceStatus @default(DRAFT)
+  paidAt          DateTime?     @map("paid_at")
+  transferId      String?       @map("transfer_id") @db.Uuid
+  metadata        Json          @default("{}")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at")
+  business        Business      @relation(fields: [businessId], references: [id])
+  counterparty    Counterparty  @relation(fields: [counterpartyId], references: [id])
+
+  @@map("invoices")
 }
