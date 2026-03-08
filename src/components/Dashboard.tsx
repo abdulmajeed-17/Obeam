@@ -640,6 +640,15 @@ export function Dashboard() {
             </h1>
             <p className="text-sm text-forest-900/60 truncate mt-0.5">{business.name} · {business.country}</p>
           </div>
+          {section === 'wallets' && availableCurrencies.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { setAddCurrencyOpen(!addCurrencyOpen); setAddCurrencyCode(availableCurrencies[0]); setAddCurrencyError(null); }}
+              className="min-h-[40px] flex items-center gap-1 px-3 sm:px-4 py-2 rounded-xl bg-forest-900 text-white text-xs sm:text-sm font-semibold hover:bg-forest-800 shadow-md transition-all active:bg-forest-800 shrink-0"
+            >
+              <span className="text-base leading-none">+</span> <span className="hidden xs:inline">Add</span> wallet
+            </button>
+          )}
         </header>
 
         <main className="flex-1 p-4 md:p-6 lg:p-8" style={{ paddingLeft: 'calc(1rem + env(safe-area-inset-left, 0px))', paddingRight: 'calc(1rem + env(safe-area-inset-right, 0px))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
@@ -719,6 +728,19 @@ export function Dashboard() {
                 {wallets.length === 0 && (
                   <div className="bg-white/80 rounded-2xl border border-forest-900/8 shadow-lg p-5 mb-4">
                     <p className="text-forest-900/70 text-sm">No wallets yet. Use Wallets to see balances after top-up.</p>
+                  </div>
+                )}
+
+                {wallets.length > 0 && wallets.length < 3 && availableCurrencies.length > 0 && (
+                  <div className="bg-white/80 rounded-2xl border border-forest-900/8 shadow-sm p-4 mb-4 flex items-center justify-between gap-3">
+                    <p className="text-forest-900/70 text-sm">Need another currency? Add a wallet to send or receive in more currencies.</p>
+                    <button
+                      type="button"
+                      onClick={() => { setSection('wallets'); setTimeout(() => { setAddCurrencyOpen(true); setAddCurrencyCode(availableCurrencies[0]); setAddCurrencyError(null); }, 100); }}
+                      className="min-h-[40px] flex items-center gap-1 px-4 py-2 rounded-xl bg-forest-900 text-white text-xs font-semibold hover:bg-forest-800 transition-all active:bg-forest-800 shrink-0 whitespace-nowrap"
+                    >
+                      + Add wallet
+                    </button>
                   </div>
                 )}
 
