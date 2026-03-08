@@ -856,18 +856,7 @@ export function Dashboard() {
 
             {section === 'wallets' && (
               <motion.div key="wallets" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-5xl">
-                <div className="flex items-center justify-between gap-3 mb-6">
-                  <p className="text-forest-900/70 text-sm sm:text-[15px]">Your wallets</p>
-                  {availableCurrencies.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => { setAddCurrencyOpen(!addCurrencyOpen); setAddCurrencyCode(availableCurrencies[0]); setAddCurrencyError(null); }}
-                      className="min-h-[44px] flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-forest-900 text-white text-sm font-semibold hover:bg-forest-800 shadow-lg shadow-forest-900/20 transition-all active:bg-forest-800 shrink-0"
-                    >
-                      <span className="text-lg leading-none">+</span> Add wallet
-                    </button>
-                  )}
-                </div>
+                <p className="text-forest-900/70 text-sm sm:text-[15px] mb-6">Your wallets</p>
 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mb-6">
                   {wallets.map((wallet) => (
