@@ -6,7 +6,7 @@ builder = "nixpacks"
 buildCommand = "npm install --include=dev && npx prisma generate && npm run build"
 
 [deploy]
-startCommand = "npx prisma generate && node dist/src/main"
+startCommand = "npx prisma db push --skip-generate && node dist/src/main"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 healthcheckPath = "/health"
