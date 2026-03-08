@@ -646,7 +646,7 @@ export function Dashboard() {
           <AnimatePresence mode="wait">
             {section === 'overview' && (
               <motion.div key="overview" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-5xl">
-                <p className="text-forest-900/70 mb-4 text-[15px]">At a glance: balances, live rate, and actions.</p>
+                <p className="text-forest-900/70 mb-4 text-sm sm:text-[15px]">At a glance: balances, live rate, and actions.</p>
 
                 {/* Row 1: Primary wallet + FX widget */}
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-3 items-start">
@@ -662,7 +662,7 @@ export function Dashboard() {
                       <div className="w-9 h-9 rounded-xl bg-forest-900/5 flex items-center justify-center mb-2">
                         <Wallet className="w-4 h-4 text-forest-700" />
                       </div>
-                      <p className="text-2xl font-bold text-forest-900 tracking-tight">{fmtBal(primaryWallet.balance, primaryWallet.currency)}</p>
+                      <p className="text-xl sm:text-2xl font-bold text-forest-900 tracking-tight break-words">{fmtBal(primaryWallet.balance, primaryWallet.currency)}</p>
                       <p className="text-xs text-forest-900/50 mt-1 font-medium">Available balance</p>
                       <button type="button" onClick={() => setSection('wallets')} className="mt-4 w-full min-h-[44px] flex items-center justify-center gap-1.5 text-xs font-semibold text-gold-600 hover:text-gold-700 transition-colors rounded-xl active:bg-forest-900/5">
                         Manage wallets <ChevronRight size={14} />
@@ -688,11 +688,11 @@ export function Dashboard() {
                     </div>
                     {fxRate?.rate ? (
                       <>
-                        <p className="text-2xl font-bold text-white tracking-tight">
+                        <p className="text-xl sm:text-2xl font-bold text-white tracking-tight break-words">
                           1 {fxRate.base} = {getCurrencySymbol(fxRate.quote)} {Number(fxRate.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                         </p>
-                        <p className="text-xs text-white/70 mt-1.5">
-                          {CURRENCIES[fxRate.base]?.name} → {CURRENCIES[fxRate.quote]?.name} · Updated {fxUpdatedAgo}
+                        <p className="text-[11px] sm:text-xs text-white/70 mt-1.5 truncate">
+                          {CURRENCIES[fxRate.base]?.name} → {CURRENCIES[fxRate.quote]?.name} · {fxUpdatedAgo}
                         </p>
                       </>
                     ) : (
@@ -834,15 +834,15 @@ export function Dashboard() {
 
             {section === 'wallets' && (
               <motion.div key="wallets" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-5xl">
-                <div className="flex items-center justify-between mb-6">
-                  <p className="text-forest-900/70 text-[15px]">Balance, top-up, and full activity.</p>
+                <div className="flex items-center justify-between gap-3 mb-6">
+                  <p className="text-forest-900/70 text-sm sm:text-[15px]">Your wallets</p>
                   {availableCurrencies.length > 0 && (
                     <button
                       type="button"
                       onClick={() => { setAddCurrencyOpen(!addCurrencyOpen); setAddCurrencyCode(availableCurrencies[0]); setAddCurrencyError(null); }}
-                      className="min-h-[36px] flex items-center gap-1.5 px-4 py-2 rounded-xl bg-forest-900 text-white text-xs font-semibold hover:bg-forest-800 shadow-lg shadow-forest-900/20 transition-all"
+                      className="min-h-[44px] flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-forest-900 text-white text-sm font-semibold hover:bg-forest-800 shadow-lg shadow-forest-900/20 transition-all active:bg-forest-800 shrink-0"
                     >
-                      <span className="text-base leading-none">+</span> Add wallet
+                      <span className="text-lg leading-none">+</span> Add wallet
                     </button>
                   )}
                 </div>
@@ -858,45 +858,36 @@ export function Dashboard() {
                       <p className="text-xs text-forest-900/50 mt-0.5">{CURRENCIES[wallet.currency]?.name}</p>
                     </motion.div>
                   ))}
-                  {availableCurrencies.length > 0 && (
-                    <motion.button
-                      type="button"
-                      onClick={() => { setAddCurrencyOpen(!addCurrencyOpen); setAddCurrencyCode(availableCurrencies[0]); setAddCurrencyError(null); }}
-                      className="bg-white/50 backdrop-blur rounded-2xl border-2 border-dashed border-forest-900/15 p-4 flex flex-col items-center justify-center gap-2 hover:border-gold-500/40 hover:bg-white/70 transition-all duration-200 min-h-[100px]"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    >
-                      <span className="text-2xl text-forest-900/30">+</span>
-                      <span className="text-xs font-semibold text-forest-900/50">Add currency</span>
-                    </motion.button>
-                  )}
                 </div>
 
                 {addCurrencyOpen && availableCurrencies.length > 0 && (
-                  <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5 mb-6">
+                  <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 sm:p-5 mb-6">
                     <h2 className="text-base font-semibold text-forest-900 mb-3">Add a new wallet</h2>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <select value={addCurrencyCode} onChange={(e) => setAddCurrencyCode(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none flex-1">
+                    <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-3">
+                      <select value={addCurrencyCode} onChange={(e) => setAddCurrencyCode(e.target.value)} className="w-full sm:flex-1 min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none">
                         {availableCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c} — {CURRENCIES[c]?.name}</option>)}
                       </select>
-                      <button type="button" onClick={handleAddCurrency} disabled={addCurrencyLoading} className="min-h-[44px] bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/25 hover:shadow-xl hover:shadow-forest-900/30 hover:bg-forest-800 transition-all duration-200 disabled:opacity-60">
-                        {addCurrencyLoading ? 'Adding…' : 'Add wallet'}
-                      </button>
-                      <button type="button" onClick={() => setAddCurrencyOpen(false)} className="min-h-[44px] py-3 px-4 rounded-xl text-forest-900/60 hover:text-forest-900 hover:bg-forest-900/5 transition-colors font-medium">
-                        Cancel
-                      </button>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={handleAddCurrency} disabled={addCurrencyLoading} className="flex-1 sm:flex-none min-h-[44px] bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/25 hover:bg-forest-800 transition-all disabled:opacity-60 active:bg-forest-800">
+                          {addCurrencyLoading ? 'Adding…' : 'Add wallet'}
+                        </button>
+                        <button type="button" onClick={() => setAddCurrencyOpen(false)} className="min-h-[44px] py-3 px-4 rounded-xl text-forest-900/60 hover:text-forest-900 hover:bg-forest-900/5 transition-colors font-medium active:bg-forest-900/10">
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                     {addCurrencyError && <p className="mt-2 text-sm text-red-600">{addCurrencyError}</p>}
                   </div>
                 )}
 
-                <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-6 mb-8">
+                <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 sm:p-6 mb-8">
                   <h2 className="text-lg font-semibold text-forest-900 mb-4">Top up wallet</h2>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <select value={topUpCurrency} onChange={(e) => setTopUpCurrency(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]">
+                  <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-3">
+                    <select value={topUpCurrency} onChange={(e) => setTopUpCurrency(e.target.value)} className="w-full sm:w-auto min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]">
                       {wallets.map((w) => <option key={w.currency} value={w.currency}>{CURRENCIES[w.currency]?.flag} {w.currency} — {CURRENCIES[w.currency]?.name}</option>)}
                     </select>
-                    <input type="number" min="0" step="0.01" placeholder="Amount" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
-                    <button type="button" onClick={handleTopUp} disabled={topUpLoading} className="min-h-[44px] bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/25 hover:shadow-xl hover:shadow-forest-900/30 hover:bg-forest-800 transition-all duration-200 disabled:opacity-60 active:bg-forest-800">
+                    <input type="number" min="0" step="0.01" placeholder="Amount" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} className="w-full sm:flex-1 min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+                    <button type="button" onClick={handleTopUp} disabled={topUpLoading} className="w-full sm:w-auto min-h-[44px] bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/25 hover:bg-forest-800 transition-all disabled:opacity-60 active:bg-forest-800">
                       {topUpLoading ? 'Topping up…' : 'Top up'}
                     </button>
                   </div>
@@ -1167,10 +1158,10 @@ export function Dashboard() {
             <div className="space-y-3">
               <div className="flex gap-2">
                 <select value={convertFrom} onChange={(e) => { setConvertFrom(e.target.value); if (e.target.value === convertTo) setConvertTo(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); setConvertQuote(null); }} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900">
-                  {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                  {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                 </select>
                 <span className="flex items-center text-forest-900/60">→</span>
-                <select value={convertTo} onChange={(e) => { setConvertTo(e.target.value); if (e.target.value === convertFrom) setConvertFrom(CURRENCY_CODES.find((c) => c !== e.target.value) || 'NGN'); setConvertQuote(null); }} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900">
+                <select value={convertTo} onChange={(e) => { setConvertTo(e.target.value); if (e.target.value === convertFrom) setConvertFrom(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); setConvertQuote(null); }} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900">
                   {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                 </select>
               </div>
