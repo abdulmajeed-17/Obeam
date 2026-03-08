@@ -25,6 +25,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
+import { PaystackModule } from './paystack/paystack.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -55,6 +56,7 @@ import { HealthController } from './health.controller';
     MonitoringModule,
     InvoicesModule,
     ApiKeysModule,
+    PaystackModule,
   ],
   controllers: [HealthController],
 })

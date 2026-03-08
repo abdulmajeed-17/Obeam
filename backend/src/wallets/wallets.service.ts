@@ -160,7 +160,7 @@ export class WalletsService {
     return account;
   }
 
-  private async getBalanceForAccount(accountId: string): Promise<bigint> {
+  async getBalanceForAccount(accountId: string): Promise<bigint> {
     const result = await this.prisma.posting.groupBy({
       by: ['direction'],
       where: { accountId },

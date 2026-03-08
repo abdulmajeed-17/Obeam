@@ -180,6 +180,60 @@ export class LedgerService {
     };
   }
 
+  /** Withdraw from a business wallet: DEBIT Customer Wallet, CREDIT Treasury. */
+  async withdraw(params: {
+    currency: CurrencyCode;
+    amount: bigint;
+    businessId: string;
+    userId: string;
+    reference?: string;
+  }) {
+    const { currency, amount, businessId, userId, reference } = params;
+    if (amount <= 0n) {
+      throw new BadRequestException('Amount must be positive.');
+    }
+
+    const [treasury, wallet] = await Promise.all([
+      this.ensureTreasury(currency),
+      this.prisma.account.findFirst({
+        where: { businessId, currency, type: 'CUSTOMER_WALLET' },
+      }),
+    ]);
+
+    if (!wallet) {
+      throw new BadRequestException(`No ${currency} wallet found.`);
+    }
+
+    const entry = await this.prisma.$transaction(async (tx) => {
+      const journalEntry = await tx.journalEntry.create({
+        data: {
+          entryType: 'WALLET_WITHDRAWAL',
+          currency,
+          referenceType: 'WITHDRAWAL',
+          referenceId: reference || wallet.id,
+          memo: `Withdrawal ${currency}`,
+          createdBy: userId,
+        },
+      });
+
+      await tx.posting.createMany({
+        data: [
+          { entryId: journalEntry.id, accountId: wallet.id, direction: 'DEBIT', amount },
+          { entryId: journalEntry.id, accountId: treasury.id, direction: 'CREDIT', amount },
+        ],
+      });
+
+      return journalEntry;
+    });
+
+    return {
+      entryId: entry.id,
+      currency,
+      amount: amount.toString(),
+      memo: 'Withdrawal',
+    };
+  }
+
   /** Convert between wallets: DEBIT fromCurrency wallet, CREDIT toCurrency wallet (FX_CONVERSION). */
   async convert(params: {
     businessId: string;

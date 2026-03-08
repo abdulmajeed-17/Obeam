@@ -118,6 +118,19 @@ export function Dashboard() {
   const [executeConvertLoading, setExecuteConvertLoading] = useState(false);
   const [executeConvertError, setExecuteConvertError] = useState<string | null>(null);
   const [cancelTransferLoading, setCancelTransferLoading] = useState(false);
+  const [depositCurrency, setDepositCurrency] = useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [depositMessage, setDepositMessage] = useState<string | null>(null);
+  const [withdrawCurrency, setWithdrawCurrency] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawBankCode, setWithdrawBankCode] = useState('');
+  const [withdrawAccountNumber, setWithdrawAccountNumber] = useState('');
+  const [withdrawAccountName, setWithdrawAccountName] = useState('');
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawMessage, setWithdrawMessage] = useState<string | null>(null);
+  const [withdrawBanks, setWithdrawBanks] = useState<{ name: string; code: string }[]>([]);
+  const [withdrawBanksLoading, setWithdrawBanksLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('obeam_token');
@@ -158,6 +171,8 @@ export function Dashboard() {
         setConvertFrom(primary);
         setConvertCardFrom(primary);
         setTopUpCurrency(primary);
+        setDepositCurrency(primary);
+        setWithdrawCurrency(primary);
         const defaultTo = primary === 'GHS' ? 'NGN' : 'GHS';
         setSendToCurrency(defaultTo);
         setConvertTo(defaultTo);
@@ -490,6 +505,89 @@ export function Dashboard() {
       setTopUpMessage('Network error.');
     } finally {
       setTopUpLoading(false);
+    }
+  };
+
+  const handleDeposit = async () => {
+    const amountMajor = parseFloat(depositAmount);
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) { setDepositMessage('Enter a valid amount.'); return; }
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    setDepositLoading(true);
+    setDepositMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/paystack/deposit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ amount: amountMajor, currency: depositCurrency }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = Array.isArray(data.message) ? data.message[0] : data.message;
+        setDepositMessage(msg || 'Could not start deposit.');
+        return;
+      }
+      window.open(data.authorization_url, '_blank');
+      setDepositMessage('Payment page opened. Complete payment and your wallet will be credited automatically.');
+      setDepositAmount('');
+    } catch {
+      setDepositMessage('Network error.');
+    } finally {
+      setDepositLoading(false);
+    }
+  };
+
+  const fetchBanks = async (currency: string) => {
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    setWithdrawBanksLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/paystack/banks?currency=${currency}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.banks) setWithdrawBanks(data.banks);
+    } catch { /* ignore */ }
+    setWithdrawBanksLoading(false);
+  };
+
+  const handleWithdraw = async () => {
+    const amountMajor = parseFloat(withdrawAmount);
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) { setWithdrawMessage('Enter a valid amount.'); return; }
+    if (!withdrawBankCode || !withdrawAccountNumber || !withdrawAccountName) {
+      setWithdrawMessage('Fill in all bank details.'); return;
+    }
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    setWithdrawLoading(true);
+    setWithdrawMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/paystack/withdraw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          amount: amountMajor,
+          currency: withdrawCurrency,
+          bankCode: withdrawBankCode,
+          accountNumber: withdrawAccountNumber,
+          accountName: withdrawAccountName,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = Array.isArray(data.message) ? data.message[0] : data.message;
+        setWithdrawMessage(msg || 'Withdrawal failed.');
+        return;
+      }
+      setWithdrawMessage(`Withdrawal of ${data.amount} ${data.currency} sent to ${data.recipientName}.`);
+      setWithdrawAmount('');
+      setWithdrawAccountNumber('');
+      setWithdrawAccountName('');
+      refetchWallets();
+    } catch {
+      setWithdrawMessage('Network error.');
+    } finally {
+      setWithdrawLoading(false);
     }
   };
 
@@ -914,7 +1012,55 @@ export function Dashboard() {
                     </button>
                   </div>
                   {topUpMessage && <p className={`mt-3 text-sm ${topUpMessage.includes('success') ? 'text-forest-700 font-medium' : 'text-red-600'}`}>{topUpMessage}</p>}
+                  <p className="mt-2 text-xs text-forest-900/40">Demo top-up (ledger only). Use Deposit below for real money via Paystack.</p>
                 </div>
+
+                {wallets.length > 0 && (
+                  <div className="bg-white/90 backdrop-blur rounded-2xl border border-emerald-500/20 shadow-lg shadow-forest-900/5 p-4 sm:p-6 mb-4">
+                    <h2 className="text-lg font-semibold text-forest-900 mb-1">Deposit (real money)</h2>
+                    <p className="text-xs text-forest-900/50 mb-4">Pay with card or bank transfer via Paystack. Your wallet is credited instantly.</p>
+                    <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-3">
+                      <select value={depositCurrency} onChange={(e) => setDepositCurrency(e.target.value)} className="w-full sm:w-auto min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none">
+                        {wallets.map((w) => <option key={w.currency} value={w.currency}>{CURRENCIES[w.currency]?.flag} {w.currency}</option>)}
+                      </select>
+                      <input type="number" min="0" step="0.01" placeholder="Amount" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="w-full sm:flex-1 min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+                      <button type="button" onClick={handleDeposit} disabled={depositLoading} className="w-full sm:w-auto min-h-[44px] bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-700/25 hover:bg-emerald-800 transition-all disabled:opacity-60 active:bg-emerald-800">
+                        {depositLoading ? 'Opening…' : 'Deposit'}
+                      </button>
+                    </div>
+                    {depositMessage && <p className={`mt-3 text-sm ${depositMessage.includes('opened') || depositMessage.includes('credited') ? 'text-emerald-700 font-medium' : 'text-red-600'}`}>{depositMessage}</p>}
+                  </div>
+                )}
+
+                {wallets.length > 0 && (
+                  <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 sm:p-6 mb-8">
+                    <h2 className="text-lg font-semibold text-forest-900 mb-1">Withdraw to bank</h2>
+                    <p className="text-xs text-forest-900/50 mb-4">Send money from your wallet to a real bank account.</p>
+                    <div className="space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <select value={withdrawCurrency} onChange={(e) => { setWithdrawCurrency(e.target.value); fetchBanks(e.target.value); setWithdrawBankCode(''); }} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none">
+                          <option value="">Select currency</option>
+                          {wallets.map((w) => <option key={w.currency} value={w.currency}>{CURRENCIES[w.currency]?.flag} {w.currency}</option>)}
+                        </select>
+                        <select value={withdrawBankCode} onChange={(e) => setWithdrawBankCode(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none" disabled={withdrawBanksLoading || withdrawBanks.length === 0}>
+                          <option value="">{withdrawBanksLoading ? 'Loading banks…' : withdrawBanks.length === 0 ? 'Select currency first' : 'Select bank'}</option>
+                          {withdrawBanks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <input type="text" placeholder="Account number" value={withdrawAccountNumber} onChange={(e) => setWithdrawAccountNumber(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+                        <input type="text" placeholder="Account holder name" value={withdrawAccountName} onChange={(e) => setWithdrawAccountName(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+                      </div>
+                      <div className="flex gap-3">
+                        <input type="number" min="0" step="0.01" placeholder="Amount" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+                        <button type="button" onClick={handleWithdraw} disabled={withdrawLoading} className="min-h-[44px] bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/25 hover:bg-forest-800 transition-all disabled:opacity-60 active:bg-forest-800">
+                          {withdrawLoading ? 'Sending…' : 'Withdraw'}
+                        </button>
+                      </div>
+                    </div>
+                    {withdrawMessage && <p className={`mt-3 text-sm ${withdrawMessage.includes('sent') ? 'text-emerald-700 font-medium' : 'text-red-600'}`}>{withdrawMessage}</p>}
+                  </div>
+                )}
 
                 <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5">
                   <div className="flex items-center gap-2 mb-4">
