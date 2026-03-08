@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  Post,
+  Body,
   Param,
   Query,
   UseGuards,
@@ -19,6 +21,11 @@ export class WalletsController {
   @Get()
   list(@GetUser() user: RequestUser) {
     return this.wallets.list(user);
+  }
+
+  @Post()
+  createWallet(@GetUser() user: RequestUser, @Body('currency') currency: string) {
+    return this.wallets.createWallet(user, currency);
   }
 
   @Get(':currency/balance')

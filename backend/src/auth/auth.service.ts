@@ -2,12 +2,18 @@ import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma.service';
-import { AccountType } from '@prisma/client';
+import { AccountType, CurrencyCode } from '@prisma/client';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
-import { CURRENCY_CODES, getCurrencyMeta } from '../shared/currencies';
+import { getCurrencyMeta } from '../shared/currencies';
 
 const SALT_ROUNDS = 10;
+
+const COUNTRY_TO_CURRENCY: Record<string, CurrencyCode> = {
+  NG: 'NGN', GH: 'GHS', KE: 'KES', ZA: 'ZAR',
+  SN: 'XOF', CI: 'XOF', ML: 'XOF', BF: 'XOF', NE: 'XOF', TG: 'XOF', BJ: 'XOF',
+  US: 'USD', GB: 'GBP',
+};
 
 @Injectable()
 export class AuthService {
@@ -23,12 +29,14 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    const country = dto.country ?? 'NG';
+    const homeCurrency = COUNTRY_TO_CURRENCY[country] ?? 'NGN';
 
     const result = await this.prisma.$transaction(async (tx) => {
       const business = await tx.business.create({
         data: {
           name: dto.businessName,
-          country: 'NG',
+          country,
           status: 'PENDING',
         },
       });
@@ -42,14 +50,14 @@ export class AuthService {
         },
       });
 
-      await tx.account.createMany({
-        data: CURRENCY_CODES.map((code) => ({
+      await tx.account.create({
+        data: {
           businessId: business.id,
-          currency: code,
+          currency: homeCurrency,
           type: AccountType.CUSTOMER_WALLET,
-          label: `Wallet ${getCurrencyMeta(code).name}`,
+          label: `Wallet ${getCurrencyMeta(homeCurrency).name}`,
           isPlatform: false,
-        })),
+        },
       });
 
       return { user, business };

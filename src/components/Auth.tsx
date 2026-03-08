@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Lock, Mail, Smartphone } from 'lucide-react';
+import { ArrowLeft, Lock, Mail, Smartphone, Globe } from 'lucide-react';
+import { COUNTRIES } from '../shared/currencies';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -16,6 +17,7 @@ export function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [country, setCountry] = useState('NG');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function Auth() {
       const res = await fetch(`${API_BASE}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password, businessName: businessName.trim() }),
+        body: JSON.stringify({ email: email.trim(), password, businessName: businessName.trim(), country }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -170,7 +172,7 @@ export function Auth() {
                       Create your account
                     </h1>
                     <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
-                      Start paying Ghana suppliers in 24 hours. Transparent FX. Zero hidden fees.
+                      Send cross-border payments across Africa. Transparent FX. Zero hidden fees.
                     </p>
 
                     {error && (
@@ -195,6 +197,24 @@ export function Auth() {
                         onChange={(e) => setBusinessName(e.target.value)}
                         className="w-full pl-3 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-forest-900 mb-1.5">
+                        Country
+                      </label>
+                      <div className="relative">
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <select
+                          value={country}
+                          onChange={(e) => setCountry(e.target.value)}
+                          className="w-full pl-9 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm appearance-none"
+                        >
+                          {COUNTRIES.map((c) => (
+                            <option key={c.code} value={c.code}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
                     <div>
@@ -402,7 +422,7 @@ export function Auth() {
               {[
                 { step: 1, label: 'Create account', sub: 'Business email' },
                 { step: 2, label: 'Verify business', sub: 'Quick compliance check' },
-                { step: 3, label: 'Send first payment', sub: 'Ghana in 24 hours' },
+                { step: 3, label: 'Send first payment', sub: 'Africa in 24 hours' },
               ].map(({ step, label, sub }, i) => (
                 <div key={step} className="flex items-start gap-4">
                   <div className="flex flex-col items-center shrink-0">

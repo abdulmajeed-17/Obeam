@@ -1,7 +1,8 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { CurrencyCode } from '@prisma/client';
+import { CurrencyCode, AccountType } from '@prisma/client';
 import { RequestUser } from '../auth/get-user.decorator';
+import { isValidCurrency, getCurrencyMeta } from '../shared/currencies';
 
 @Injectable()
 export class WalletsService {
@@ -30,6 +31,48 @@ export class WalletsService {
     );
 
     return { wallets: balances };
+  }
+
+  async createWallet(user: RequestUser, currency: string) {
+    const code = this.parseCurrency(currency);
+
+    const existing = await this.prisma.account.findFirst({
+      where: { businessId: user.businessId, currency: code, type: AccountType.CUSTOMER_WALLET },
+    });
+    if (existing) {
+      throw new ConflictException(`${code} wallet already exists.`);
+    }
+
+    const meta = getCurrencyMeta(code);
+    const account = await this.prisma.account.create({
+      data: {
+        businessId: user.businessId,
+        currency: code,
+        type: AccountType.CUSTOMER_WALLET,
+        label: `Wallet ${meta.name}`,
+        isPlatform: false,
+      },
+    });
+
+    return { id: account.id, currency: code, label: account.label, balance: '0' };
+  }
+
+  async ensureWallet(businessId: string, currency: CurrencyCode) {
+    const existing = await this.prisma.account.findFirst({
+      where: { businessId, currency, type: AccountType.CUSTOMER_WALLET },
+    });
+    if (existing) return existing;
+
+    const meta = getCurrencyMeta(currency);
+    return this.prisma.account.create({
+      data: {
+        businessId,
+        currency,
+        type: AccountType.CUSTOMER_WALLET,
+        label: `Wallet ${meta.name}`,
+        isPlatform: false,
+      },
+    });
   }
 
   async getBalance(user: RequestUser, currency: string) {
@@ -97,8 +140,8 @@ export class WalletsService {
 
   private parseCurrency(currency: string): CurrencyCode {
     const upper = currency.toUpperCase();
-    if (upper !== 'NGN' && upper !== 'GHS') {
-      throw new BadRequestException('Invalid currency. Use NGN or GHS.');
+    if (!isValidCurrency(upper)) {
+      throw new BadRequestException(`Invalid currency: ${upper}. Supported: NGN, GHS, KES, ZAR, XOF, USD, GBP.`);
     }
     return upper as CurrencyCode;
   }
@@ -132,10 +175,6 @@ export class WalletsService {
       else credits += sum;
     }
 
-    // For wallets and other asset-style accounts we treat:
-    // - CREDIT as money in
-    // - DEBIT as money out
-    // so effective balance is credits - debits.
     return credits - debits;
   }
 }

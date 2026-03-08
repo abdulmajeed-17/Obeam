@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
 
 export class SignupDto {
   @IsEmail()
@@ -11,4 +11,8 @@ export class SignupDto {
   @IsString()
   @MinLength(1, { message: 'Business name is required' })
   businessName: string;
+
+  @IsString()
+  @IsOptional()
+  country?: string;
 }

@@ -13,7 +13,6 @@ import {
   Receipt,
   Zap,
   ChevronRight,
-  ChevronDown,
   Users,
   FileText,
   Shield,
@@ -73,7 +72,11 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [section, setSection] = useState<DashboardSection>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [topUpCurrency, setTopUpCurrency] = useState('NGN');
+  const [topUpCurrency, setTopUpCurrency] = useState('');
+  const [addCurrencyOpen, setAddCurrencyOpen] = useState(false);
+  const [addCurrencyCode, setAddCurrencyCode] = useState('');
+  const [addCurrencyLoading, setAddCurrencyLoading] = useState(false);
+  const [addCurrencyError, setAddCurrencyError] = useState<string | null>(null);
   const [topUpAmount, setTopUpAmount] = useState('');
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [topUpMessage, setTopUpMessage] = useState<string | null>(null);
@@ -115,7 +118,6 @@ export function Dashboard() {
   const [executeConvertLoading, setExecuteConvertLoading] = useState(false);
   const [executeConvertError, setExecuteConvertError] = useState<string | null>(null);
   const [cancelTransferLoading, setCancelTransferLoading] = useState(false);
-  const [showAllWallets, setShowAllWallets] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('obeam_token');
@@ -491,6 +493,33 @@ export function Dashboard() {
     }
   };
 
+  const handleAddCurrency = async () => {
+    if (!addCurrencyCode) return;
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    setAddCurrencyLoading(true);
+    setAddCurrencyError(null);
+    try {
+      const res = await fetch(`${API_BASE}/wallets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ currency: addCurrencyCode }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setAddCurrencyError(data.message || 'Failed to add currency.');
+        return;
+      }
+      setAddCurrencyOpen(false);
+      setAddCurrencyCode('');
+      refetchWallets();
+    } catch {
+      setAddCurrencyError('Network error.');
+    } finally {
+      setAddCurrencyLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('obeam_token');
     window.history.pushState({}, '', '/');
@@ -499,12 +528,13 @@ export function Dashboard() {
 
   const fmtBal = (balance: string, currency: string) => formatBalance(balance, currency);
 
+  const existingCurrencies = wallets.map((w) => w.currency);
+  const availableCurrencies = CURRENCY_CODES.filter((c) => !existingCurrencies.includes(c));
+
   // Derived: primary wallet + others
   const primaryCurrency = business ? getPrimaryCurrency(business.country) : 'NGN';
   const primaryWallet = wallets.find((w) => w.currency === primaryCurrency) ?? wallets[0];
-  const fundedWallets = wallets.filter((w) => Number(w.balance) > 0 && w.id !== primaryWallet?.id);
-  const unfundedWallets = wallets.filter((w) => Number(w.balance) === 0 && w.id !== primaryWallet?.id);
-  const secondaryWallets = showAllWallets ? [...fundedWallets, ...unfundedWallets] : fundedWallets;
+  const otherWallets = wallets.filter((w) => w.id !== primaryWallet?.id);
 
 
   if (loading) {
@@ -674,24 +704,15 @@ export function Dashboard() {
                   </div>
                 </div>
 
-                {/* Secondary wallets — compact strip */}
-                {(fundedWallets.length > 0 || unfundedWallets.length > 0) && (
-                  <div className="mb-4">
-                    {secondaryWallets.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {secondaryWallets.map((w) => (
-                          <div key={w.id} className="flex items-center gap-2 bg-white/80 rounded-xl border border-forest-900/8 px-3 py-2 text-sm">
-                            <span className="text-forest-900/50 text-xs">{CURRENCIES[w.currency]?.flag}</span>
-                            <span className="font-medium text-forest-900">{fmtBal(w.balance, w.currency)}</span>
-                          </div>
-                        ))}
+                {/* Other wallets — compact strip */}
+                {otherWallets.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {otherWallets.map((w) => (
+                      <div key={w.id} className="flex items-center gap-2 bg-white/80 rounded-xl border border-forest-900/8 px-3 py-2 text-sm">
+                        <span className="text-forest-900/50 text-xs">{CURRENCIES[w.currency]?.flag}</span>
+                        <span className="font-medium text-forest-900">{fmtBal(w.balance, w.currency)}</span>
                       </div>
-                    )}
-                    {unfundedWallets.length > 0 && !showAllWallets && (
-                      <button type="button" onClick={() => setShowAllWallets(true)} className="text-xs text-forest-900/50 hover:text-forest-900/70 flex items-center gap-1">
-                        +{unfundedWallets.length} more wallet{unfundedWallets.length > 1 ? 's' : ''} <ChevronDown size={12} />
-                      </button>
-                    )}
+                    ))}
                   </div>
                 )}
 
@@ -826,13 +847,42 @@ export function Dashboard() {
                       <p className="text-xs text-forest-900/50 mt-0.5">{CURRENCIES[wallet.currency]?.name}</p>
                     </motion.div>
                   ))}
+                  {availableCurrencies.length > 0 && (
+                    <motion.button
+                      type="button"
+                      onClick={() => { setAddCurrencyOpen(!addCurrencyOpen); setAddCurrencyCode(availableCurrencies[0]); setAddCurrencyError(null); }}
+                      className="bg-white/50 backdrop-blur rounded-2xl border-2 border-dashed border-forest-900/15 p-4 flex flex-col items-center justify-center gap-2 hover:border-gold-500/40 hover:bg-white/70 transition-all duration-200 min-h-[100px]"
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    >
+                      <span className="text-2xl text-forest-900/30">+</span>
+                      <span className="text-xs font-semibold text-forest-900/50">Add currency</span>
+                    </motion.button>
+                  )}
                 </div>
+
+                {addCurrencyOpen && availableCurrencies.length > 0 && (
+                  <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5 mb-6">
+                    <h2 className="text-base font-semibold text-forest-900 mb-3">Add a new wallet</h2>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <select value={addCurrencyCode} onChange={(e) => setAddCurrencyCode(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none flex-1">
+                        {availableCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c} — {CURRENCIES[c]?.name}</option>)}
+                      </select>
+                      <button type="button" onClick={handleAddCurrency} disabled={addCurrencyLoading} className="min-h-[44px] bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/25 hover:shadow-xl hover:shadow-forest-900/30 hover:bg-forest-800 transition-all duration-200 disabled:opacity-60">
+                        {addCurrencyLoading ? 'Adding…' : 'Add wallet'}
+                      </button>
+                      <button type="button" onClick={() => setAddCurrencyOpen(false)} className="min-h-[44px] py-3 px-4 rounded-xl text-forest-900/60 hover:text-forest-900 hover:bg-forest-900/5 transition-colors font-medium">
+                        Cancel
+                      </button>
+                    </div>
+                    {addCurrencyError && <p className="mt-2 text-sm text-red-600">{addCurrencyError}</p>}
+                  </div>
+                )}
 
                 <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-6 mb-8">
                   <h2 className="text-lg font-semibold text-forest-900 mb-4">Top up wallet</h2>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <select value={topUpCurrency} onChange={(e) => setTopUpCurrency(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]">
-                      {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c} — {CURRENCIES[c]?.name}</option>)}
+                      {wallets.map((w) => <option key={w.currency} value={w.currency}>{CURRENCIES[w.currency]?.flag} {w.currency} — {CURRENCIES[w.currency]?.name}</option>)}
                     </select>
                     <input type="number" min="0" step="0.01" placeholder="Amount" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
                     <button type="button" onClick={handleTopUp} disabled={topUpLoading} className="min-h-[44px] bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/25 hover:shadow-xl hover:shadow-forest-900/30 hover:bg-forest-800 transition-all duration-200 disabled:opacity-60 active:bg-forest-800">

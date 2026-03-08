@@ -108,6 +108,25 @@ export class LedgerService {
     return { entryId: entry.id };
   }
 
+  /** Ensure a customer wallet exists, creating it if needed. */
+  async ensureCustomerWallet(businessId: string, currency: CurrencyCode) {
+    let wallet = await this.prisma.account.findFirst({
+      where: { businessId, currency, type: 'CUSTOMER_WALLET' },
+    });
+    if (!wallet) {
+      wallet = await this.prisma.account.create({
+        data: {
+          businessId,
+          currency,
+          type: 'CUSTOMER_WALLET',
+          label: `Wallet ${currency}`,
+          isPlatform: false,
+        },
+      });
+    }
+    return wallet;
+  }
+
   /** Top up a business wallet: DEBIT Treasury, CREDIT Customer Wallet. */
   async topUp(params: {
     currency: CurrencyCode;
@@ -122,18 +141,8 @@ export class LedgerService {
 
     const [treasury, wallet] = await Promise.all([
       this.ensureTreasury(currency),
-      this.prisma.account.findFirst({
-        where: {
-          businessId,
-          currency,
-          type: 'CUSTOMER_WALLET',
-        },
-      }),
+      this.ensureCustomerWallet(businessId, currency),
     ]);
-
-    if (!wallet) {
-      throw new BadRequestException(`No wallet found for ${currency}.`);
-    }
 
     const entry = await this.prisma.$transaction(async (tx) => {
       const journalEntry = await tx.journalEntry.create({
@@ -182,21 +191,14 @@ export class LedgerService {
       throw new BadRequestException('Currencies must differ.');
     }
 
-    const [fromWallet, toWallet] = await Promise.all([
-      this.prisma.account.findFirst({
-        where: { businessId, currency: fromCurrency, type: 'CUSTOMER_WALLET' },
-      }),
-      this.prisma.account.findFirst({
-        where: { businessId, currency: toCurrency, type: 'CUSTOMER_WALLET' },
-      }),
-    ]);
-
+    const fromWallet = await this.prisma.account.findFirst({
+      where: { businessId, currency: fromCurrency, type: 'CUSTOMER_WALLET' },
+    });
     if (!fromWallet) {
       throw new BadRequestException(`No wallet found for ${fromCurrency}.`);
     }
-    if (!toWallet) {
-      throw new BadRequestException(`No wallet found for ${toCurrency}.`);
-    }
+
+    const toWallet = await this.ensureCustomerWallet(businessId, toCurrency);
 
     const refId = randomUUID();
     const entry = await this.prisma.$transaction(async (tx) => {
