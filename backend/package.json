@@ -9,7 +9,7 @@
     "start:dev": "nest start --watch",
     "start:dev:railway": "NODE_TLS_REJECT_UNAUTHORIZED=0 nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
     "test:watch": "jest --watch",
