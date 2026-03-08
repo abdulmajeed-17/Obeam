@@ -577,7 +577,7 @@ export function Dashboard() {
   ];
 
   return (
-    <motion.div className="min-h-screen flex" style={{ backgroundColor: '#F5F1E9' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
+    <motion.div className="h-screen flex overflow-hidden" style={{ backgroundColor: '#F5F1E9' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
       {/* Sidebar */}
       <>
         <AnimatePresence>
@@ -587,7 +587,7 @@ export function Dashboard() {
         </AnimatePresence>
 
         <aside
-          className={`fixed md:sticky top-0 left-0 z-50 h-screen w-64 flex-shrink-0 flex flex-col border-r border-white/10 transform transition-transform duration-200 ease-out md:transform-none isolate ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+          className={`fixed md:relative top-0 left-0 z-50 h-screen w-64 flex-shrink-0 flex flex-col border-r border-white/10 transform transition-transform duration-200 ease-out md:transform-none isolate ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
           style={{ backgroundColor: '#0A291B', boxShadow: '4px 0 24px rgba(10, 41, 27, 0.2)' }}
         >
           <div className="flex items-center justify-between p-4 border-b border-white/10">
@@ -626,7 +626,7 @@ export function Dashboard() {
       </>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 relative" style={{ background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(200, 149, 46, 0.06), transparent 60%), #F5F1E9' }}>
+      <div className="flex-1 flex flex-col min-w-0 relative overflow-y-auto" style={{ background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(200, 149, 46, 0.06), transparent 60%), #F5F1E9' }}>
         <header
           className="sticky top-0 z-30 flex items-center gap-4 px-4 py-3.5 border-b border-forest-900/8"
           style={{ backgroundColor: 'rgba(255, 251, 245, 0.92)', backdropFilter: 'blur(12px)', paddingTop: 'max(0.875rem, env(safe-area-inset-top))' }}
