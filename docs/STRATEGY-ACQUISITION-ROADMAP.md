@@ -9,7 +9,7 @@
 ## 🎯 What Made Metronome Attractive
 
 1. **Hard technical problem** — Usage-based billing/metering is complex (multi-dimensional, real-time, auditability)
-2. **Enterprise customers** — OpenAI, Anthropic, NVIDIA (high-value logos)
+2. **Enterprise customers** — Major AI companies, chip makers (high-value logos)
 3. **Infrastructure play** — Not just a product, but foundational infrastructure others build on
 4. **Clear monetization** — Usage-based pricing (they eat their own dog food)
 5. **Regulatory moat** — Compliance, auditability, financial controls
@@ -79,7 +79,7 @@
 **D. Customer Experience**
 - **Smart routing:** AI to choose best settlement path (cost, speed, reliability)
 - **Predictive analytics:** "Your supplier usually gets paid on Fridays — schedule now?"
-- **Chat support:** AI assistant for common questions (status, fees, limits)
+- **Chat support:** Smart support for common questions (status, fees, limits)
 
 **Implementation Priority:**
 1. **Phase 1 (MVP):** Document OCR (Tesseract + GPT-4 Vision), basic risk scoring (rule-based + ML)

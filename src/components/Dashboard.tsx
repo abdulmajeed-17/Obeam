@@ -13,6 +13,7 @@ import {
   Receipt,
   Zap,
   ChevronRight,
+  ChevronDown,
   Users,
   FileText,
   Shield,
@@ -20,6 +21,7 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import { CURRENCIES, CURRENCY_CODES, COUNTRIES, formatBalance, getCurrencySymbol } from '../shared/currencies';
 
@@ -54,6 +56,15 @@ type TransferItem = {
   counterparty?: { name: string; country: string };
 };
 
+const COUNTRY_TO_CURRENCY: Record<string, string> = {
+  NG: 'NGN', GH: 'GHS', KE: 'KES', ZA: 'ZAR', SN: 'XOF', CI: 'XOF',
+  ML: 'XOF', BF: 'XOF', NE: 'XOF', TG: 'XOF', BJ: 'XOF', US: 'USD', GB: 'GBP',
+};
+
+function getPrimaryCurrency(businessCountry: string): string {
+  return COUNTRY_TO_CURRENCY[businessCountry] ?? 'NGN';
+}
+
 export function Dashboard() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [wallets, setWallets] = useState<WalletItem[]>([]);
@@ -67,7 +78,8 @@ export function Dashboard() {
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [topUpMessage, setTopUpMessage] = useState<string | null>(null);
   const [refetchKey, setRefetchKey] = useState(0);
-  const [fxRate, setFxRate] = useState<{ rate: string; asOf: string } | null>(null);
+  const [fxRate, setFxRate] = useState<{ rate: string; asOf: string; base: string; quote: string } | null>(null);
+  const [fxRefreshing, setFxRefreshing] = useState(false);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string>('');
@@ -91,6 +103,8 @@ export function Dashboard() {
   const [convertAmount, setConvertAmount] = useState('');
   const [convertQuote, setConvertQuote] = useState<{ toAmount: string; rateUsed: string } | null>(null);
   const [convertLoading, setConvertLoading] = useState(false);
+  const [convertCardFrom, setConvertCardFrom] = useState('NGN');
+  const [convertCardTo, setConvertCardTo] = useState('GHS');
   const [convertCardAmount, setConvertCardAmount] = useState('');
   const [convertCardQuote, setConvertCardQuote] = useState<{ toAmount: string; rateUsed: string } | null>(null);
   const [convertCardLoading, setConvertCardLoading] = useState(false);
@@ -101,6 +115,7 @@ export function Dashboard() {
   const [executeConvertLoading, setExecuteConvertLoading] = useState(false);
   const [executeConvertError, setExecuteConvertError] = useState<string | null>(null);
   const [cancelTransferLoading, setCancelTransferLoading] = useState(false);
+  const [showAllWallets, setShowAllWallets] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('obeam_token');
@@ -126,14 +141,8 @@ export function Dashboard() {
           return;
         }
 
-        if (!businessRes.ok) {
-          setError('Could not load business.');
-          return;
-        }
-        if (!walletsRes.ok) {
-          setError('Could not load wallets.');
-          return;
-        }
+        if (!businessRes.ok) { setError('Could not load business.'); return; }
+        if (!walletsRes.ok) { setError('Could not load wallets.'); return; }
 
         const businessData = await businessRes.json();
         const walletsData = await walletsRes.json();
@@ -141,6 +150,16 @@ export function Dashboard() {
         setBusiness(businessData);
         setWallets(walletsData.wallets || []);
         setCounterparties(counterpartiesData.counterparties || []);
+
+        const primary = getPrimaryCurrency(businessData.country);
+        setSendFromCurrency(primary);
+        setConvertFrom(primary);
+        setConvertCardFrom(primary);
+        setTopUpCurrency(primary);
+        const defaultTo = primary === 'GHS' ? 'NGN' : 'GHS';
+        setSendToCurrency(defaultTo);
+        setConvertTo(defaultTo);
+        setConvertCardTo(defaultTo);
       } catch {
         setError('Network error.');
       } finally {
@@ -151,27 +170,28 @@ export function Dashboard() {
     fetchData();
   }, [refetchKey]);
 
-  // Live FX rate (1 GHS = ₦X) — poll every 30s once we have business
+  // Live FX rate — dynamic based on sendFrom/sendTo
+  const fetchFxRate = async () => {
+    const token = localStorage.getItem('obeam_token');
+    if (!token || !business) return;
+    try {
+      const res = await fetch(`${API_BASE}/fx/rate?base=${sendFromCurrency}&quote=${sendToCurrency}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setFxRate({ rate: String(data.rate ?? ''), asOf: data.asOf ?? new Date().toISOString(), base: sendFromCurrency, quote: sendToCurrency });
+    } catch {
+      setFxRate(null);
+    }
+  };
+
   useEffect(() => {
     if (!business) return;
-    const token = localStorage.getItem('obeam_token');
-    if (!token) return;
-    const fetchFx = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/fx/rate?base=GHS&quote=NGN`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        setFxRate({ rate: String(data.rate ?? ''), asOf: data.asOf ?? new Date().toISOString() });
-      } catch {
-        setFxRate(null);
-      }
-    };
-    fetchFx();
-    const t = setInterval(fetchFx, 30_000);
+    fetchFxRate();
+    const t = setInterval(fetchFxRate, 30_000);
     return () => clearInterval(t);
-  }, [business?.id, refetchKey]);
+  }, [business?.id, refetchKey, sendFromCurrency, sendToCurrency]);
 
   useEffect(() => {
     if (!business) return;
@@ -188,7 +208,7 @@ export function Dashboard() {
       )
     )
       .then((results) => {
-        const mapType = (t: string) => (t === 'WALLET_TOPUP' ? 'Top up' : t === 'FX_CONVERSION' ? 'FX' : t.startsWith('TRANSFER') ? 'Send' : t);
+        const mapType = (t: string) => (t === 'WALLET_TOPUP' ? 'Top up' : t === 'FX_CONVERSION' ? 'Convert' : t.startsWith('TRANSFER') ? 'Send' : t);
         const toItem = (p: { id: string; createdAt: string; direction: string; amount: string; entryType: string }, currency: string): ActivityItem & { _ts: number } => ({
           id: p.id,
           date: new Date(p.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
@@ -196,6 +216,7 @@ export function Dashboard() {
           status: 'Completed',
           amount: p.direction === 'CREDIT' ? `+${(Number(p.amount) / 100).toFixed(2)}` : `-${(Number(p.amount) / 100).toFixed(2)}`,
           currency,
+          direction: p.direction,
           ref: p.id.slice(0, 8).toUpperCase(),
           _ts: new Date(p.createdAt).getTime(),
         });
@@ -214,7 +235,6 @@ export function Dashboard() {
       .finally(() => setActivityLoading(false));
   }, [business?.id, refetchKey, wallets.length]);
 
-  // Transfers list when section is transfers
   useEffect(() => {
     if (section !== 'transfers' || !business) return;
     const token = localStorage.getItem('obeam_token');
@@ -230,12 +250,8 @@ export function Dashboard() {
       .finally(() => setTransfersLoading(false));
   }, [section, refetchKey, business?.id]);
 
-  // Transfer detail when selected
   useEffect(() => {
-    if (!selectedTransferId) {
-      setTransferDetail(null);
-      return;
-    }
+    if (!selectedTransferId) { setTransferDetail(null); return; }
     const token = localStorage.getItem('obeam_token');
     if (!token) return;
     fetch(`${API_BASE}/transfers/${selectedTransferId}`, { headers: { Authorization: `Bearer ${token}` } })
@@ -252,13 +268,9 @@ export function Dashboard() {
     setCancelTransferLoading(true);
     try {
       const res = await fetch(`${API_BASE}/transfers/${selectedTransferId}/cancel`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) {
-        await res.json().catch(() => ({}));
-        return;
-      }
+      if (!res.ok) { await res.json().catch(() => ({})); return; }
       setSelectedTransferId(null);
       setTransferDetail(null);
       setRefetchKey((k) => k + 1);
@@ -272,10 +284,7 @@ export function Dashboard() {
   const handleAddBeneficiary = async () => {
     const name = newBeneficiaryName.trim();
     const payoutRef = newBeneficiaryPayoutRef.trim();
-    if (!name || !payoutRef) {
-      setAddBeneficiaryError('Name and account/reference are required.');
-      return;
-    }
+    if (!name || !payoutRef) { setAddBeneficiaryError('Name and account/reference are required.'); return; }
     setAddBeneficiaryError(null);
     setAddBeneficiaryLoading(true);
     try {
@@ -283,12 +292,7 @@ export function Dashboard() {
       const res = await fetch(`${API_BASE}/counterparties`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          name,
-          country: newBeneficiaryCountry || 'GH',
-          payoutType: newBeneficiaryPayoutType || 'BANK',
-          payoutRef,
-        }),
+        body: JSON.stringify({ name, country: newBeneficiaryCountry || 'GH', payoutType: newBeneficiaryPayoutType || 'BANK', payoutRef }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -308,10 +312,7 @@ export function Dashboard() {
 
   const handleSendGetQuote = async () => {
     const amountMajor = parseFloat(sendAmount);
-    if (!Number.isFinite(amountMajor) || amountMajor <= 0) {
-      setSendError('Enter a valid amount.');
-      return;
-    }
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) { setSendError('Enter a valid amount.'); return; }
     setSendError(null);
     setSendQuote(null);
     setSendLoading(true);
@@ -321,16 +322,9 @@ export function Dashboard() {
       const res = await fetch(`${API_BASE}/fx/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          fromCurrency: sendFromCurrency,
-          toCurrency: sendToCurrency,
-          fromAmount: fromAmountMinor.toString(),
-        }),
+        body: JSON.stringify({ fromCurrency: sendFromCurrency, toCurrency: sendToCurrency, fromAmount: fromAmountMinor.toString() }),
       });
-      if (!res.ok) {
-        setSendError('Could not get quote.');
-        return;
-      }
+      if (!res.ok) { setSendError('Could not get quote.'); return; }
       const data = await res.json();
       setSendQuote({ toAmount: data.toAmount, rateUsed: data.rateUsed });
     } catch {
@@ -355,10 +349,8 @@ export function Dashboard() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           counterpartyId: selectedCounterpartyId,
-          fromCurrency: sendFromCurrency,
-          toCurrency: sendToCurrency,
-          fromAmount: fromAmountMinor.toString(),
-          toAmount: toAmountMinor.toString(),
+          fromCurrency: sendFromCurrency, toCurrency: sendToCurrency,
+          fromAmount: fromAmountMinor.toString(), toAmount: toAmountMinor.toString(),
         }),
       });
       if (!createRes.ok) {
@@ -368,13 +360,9 @@ export function Dashboard() {
       }
       const transfer = await createRes.json();
       const confirmRes = await fetch(`${API_BASE}/transfers/${transfer.id}/confirm`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
       });
-      if (!confirmRes.ok) {
-        setSendError('Transfer created but confirm failed.');
-        return;
-      }
+      if (!confirmRes.ok) { setSendError('Transfer created but confirm failed.'); return; }
       setSendModalOpen(false);
       setSendAmount('');
       setSendQuote(null);
@@ -388,10 +376,7 @@ export function Dashboard() {
 
   const handleConvertCardGetQuote = async () => {
     const amountMajor = parseFloat(convertCardAmount);
-    if (!Number.isFinite(amountMajor) || amountMajor <= 0) {
-      setConvertCardQuote(null);
-      return;
-    }
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) { setConvertCardQuote(null); return; }
     setConvertCardQuote(null);
     setExecuteConvertError(null);
     setConvertCardLoading(true);
@@ -401,11 +386,7 @@ export function Dashboard() {
       const res = await fetch(`${API_BASE}/fx/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          fromCurrency: 'NGN',
-          toCurrency: 'GHS',
-          fromAmount: fromAmountMinor.toString(),
-        }),
+        body: JSON.stringify({ fromCurrency: convertCardFrom, toCurrency: convertCardTo, fromAmount: fromAmountMinor.toString() }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -420,10 +401,7 @@ export function Dashboard() {
 
   const handleConvertGetQuote = async () => {
     const amountMajor = parseFloat(convertAmount);
-    if (!Number.isFinite(amountMajor) || amountMajor <= 0) {
-      setConvertQuote(null);
-      return;
-    }
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) { setConvertQuote(null); return; }
     setConvertQuote(null);
     setConvertLoading(true);
     try {
@@ -432,11 +410,7 @@ export function Dashboard() {
       const res = await fetch(`${API_BASE}/fx/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          fromCurrency: convertFrom,
-          toCurrency: convertTo,
-          fromAmount: fromAmountMinor.toString(),
-        }),
+        body: JSON.stringify({ fromCurrency: convertFrom, toCurrency: convertTo, fromAmount: fromAmountMinor.toString() }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -456,19 +430,12 @@ export function Dashboard() {
     setExecuteConvertLoading(true);
     try {
       const token = localStorage.getItem('obeam_token');
-      if (!token) {
-        setExecuteConvertError('Please log in again.');
-        return;
-      }
+      if (!token) { setExecuteConvertError('Please log in again.'); return; }
       const fromAmountMinor = BigInt(Math.round(amountMajor * 100));
       const res = await fetch(`${API_BASE}/ledger/convert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          fromCurrency: 'NGN',
-          toCurrency: 'GHS',
-          fromAmount: fromAmountMinor.toString(),
-        }),
+        body: JSON.stringify({ fromCurrency: convertCardFrom, toCurrency: convertCardTo, fromAmount: fromAmountMinor.toString() }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -476,7 +443,6 @@ export function Dashboard() {
         setExecuteConvertError(msg);
         return;
       }
-      setExecuteConvertError(null);
       setConvertCardQuote(null);
       setConvertCardAmount('');
       setRefetchKey((k) => k + 1);
@@ -497,10 +463,7 @@ export function Dashboard() {
 
   const handleTopUp = async () => {
     const amountMajor = parseFloat(topUpAmount);
-    if (!Number.isFinite(amountMajor) || amountMajor <= 0) {
-      setTopUpMessage('Enter a valid amount.');
-      return;
-    }
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) { setTopUpMessage('Enter a valid amount.'); return; }
     const amountMinor = Math.round(amountMajor * 100);
     const token = localStorage.getItem('obeam_token');
     if (!token) return;
@@ -509,10 +472,7 @@ export function Dashboard() {
     try {
       const res = await fetch(`${API_BASE}/ledger/top-up`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ currency: topUpCurrency, amount: String(amountMinor) }),
       });
       const data = await res.json().catch(() => ({}));
@@ -539,37 +499,26 @@ export function Dashboard() {
 
   const fmtBal = (balance: string, currency: string) => formatBalance(balance, currency);
 
+  // Derived: primary wallet + others
+  const primaryCurrency = business ? getPrimaryCurrency(business.country) : 'NGN';
+  const primaryWallet = wallets.find((w) => w.currency === primaryCurrency) ?? wallets[0];
+  const fundedWallets = wallets.filter((w) => Number(w.balance) > 0 && w.id !== primaryWallet?.id);
+  const unfundedWallets = wallets.filter((w) => Number(w.balance) === 0 && w.id !== primaryWallet?.id);
+  const secondaryWallets = showAllWallets ? [...fundedWallets, ...unfundedWallets] : fundedWallets;
+
+
   if (loading) {
     return (
-      <div
-        className="min-h-screen flex flex-col items-center justify-center gap-6"
-        style={{ backgroundColor: '#F5F1E9' }}
-      >
-        {/* Animated O — same as logo (gold rounded square + cream beam) */}
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6" style={{ backgroundColor: '#F5F1E9' }}>
         <motion.div
           className="w-16 h-16 bg-gradient-to-br from-gold-400 to-gold-600 rounded-xl flex items-center justify-center shadow-xl shadow-gold-500/30"
           initial={{ opacity: 0, scale: 0.9 }}
-          animate={{
-            opacity: 1,
-            scale: [1, 1.08, 1],
-          }}
-          transition={{
-            opacity: { duration: 0.35 },
-            scale: {
-              duration: 1.3,
-              repeat: Infinity,
-              repeatType: 'reverse',
-            },
-          }}
+          animate={{ opacity: 1, scale: [1, 1.08, 1] }}
+          transition={{ opacity: { duration: 0.35 }, scale: { duration: 1.3, repeat: Infinity, repeatType: 'reverse' } }}
         >
           <div className="w-4 h-6 rounded-full bg-cream-50" />
         </motion.div>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.25 }}
-          className="text-forest-900/70 text-sm font-semibold tracking-[0.2em] uppercase"
-        >
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }} className="text-forest-900/70 text-sm font-semibold tracking-[0.2em] uppercase">
           obeam
         </motion.p>
       </div>
@@ -578,22 +527,11 @@ export function Dashboard() {
 
   if (error || !business) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center px-4"
-        style={{ backgroundColor: '#F5F1E9' }}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-lg p-6 max-w-md w-full text-center"
-        >
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#F5F1E9' }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-lg p-6 max-w-md w-full text-center">
           <p className="text-red-600 mb-4">{error || 'Not found.'}</p>
-          <a
-            href="/login"
-            className="inline-flex items-center gap-2 text-forest-900 font-semibold hover:text-forest-700"
-          >
-            <ArrowLeft size={18} />
-            Back to login
+          <a href="/login" className="inline-flex items-center gap-2 text-forest-900 font-semibold hover:text-forest-700">
+            <ArrowLeft size={18} /> Back to login
           </a>
         </motion.div>
       </div>
@@ -609,42 +547,18 @@ export function Dashboard() {
   ];
 
   return (
-    <motion.div
-      className="min-h-screen flex"
-      style={{ backgroundColor: '#F5F1E9' }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.35 }}
-    >
-      {/* ----- Sidebar (Paystack-style) ----- */}
+    <motion.div className="min-h-screen flex" style={{ backgroundColor: '#F5F1E9' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
+      {/* Sidebar */}
       <>
-        {/* Overlay on mobile when sidebar open */}
         <AnimatePresence>
           {sidebarOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-forest-900/30 md:hidden"
-              onClick={() => setSidebarOpen(false)}
-              aria-hidden
-            />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 bg-forest-900/30 md:hidden" onClick={() => setSidebarOpen(false)} aria-hidden />
           )}
         </AnimatePresence>
 
         <aside
-          className={`
-            fixed md:sticky top-0 left-0 z-50 h-screen w-64 flex-shrink-0
-            flex flex-col
-            border-r border-white/10
-            transform transition-transform duration-200 ease-out md:transform-none
-            isolate
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-          `}
-          style={{
-            backgroundColor: '#0A291B',
-            boxShadow: '4px 0 24px rgba(10, 41, 27, 0.2)',
-          }}
+          className={`fixed md:sticky top-0 left-0 z-50 h-screen w-64 flex-shrink-0 flex flex-col border-r border-white/10 transform transition-transform duration-200 ease-out md:transform-none isolate ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+          style={{ backgroundColor: '#0A291B', boxShadow: '4px 0 24px rgba(10, 41, 27, 0.2)' }}
         >
           <div className="flex items-center justify-between p-4 border-b border-white/10">
             <a href="/" className="flex items-center gap-2.5">
@@ -653,12 +567,7 @@ export function Dashboard() {
               </div>
               <span className="text-lg font-extrabold text-white tracking-tight">Obeam</span>
             </a>
-            <button
-              type="button"
-              aria-label="Close menu"
-              className="md:hidden p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-              onClick={() => setSidebarOpen(false)}
-            >
+            <button type="button" aria-label="Close menu" className="md:hidden p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors" onClick={() => setSidebarOpen(false)}>
               <X size={22} />
             </button>
           </div>
@@ -668,16 +577,8 @@ export function Dashboard() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => {
-                  setSection(item.id);
-                  setSidebarOpen(false);
-                }}
-                className={`
-                  w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left font-medium transition-all duration-200 active:bg-white/10
-                  ${section === item.id
-                    ? 'bg-gold-500/30 text-cream-50 shadow-md shadow-black/10'
-                    : 'text-white/80 hover:bg-white/5 hover:text-white/95'}
-                `}
+                onClick={() => { setSection(item.id); setSidebarOpen(false); }}
+                className={`w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left font-medium transition-all duration-200 active:bg-white/10 ${section === item.id ? 'bg-gold-500/30 text-cream-50 shadow-md shadow-black/10' : 'text-white/80 hover:bg-white/5 hover:text-white/95'}`}
               >
                 {item.icon}
                 {item.label}
@@ -686,136 +587,113 @@ export function Dashboard() {
           </nav>
 
           <div className="p-3 border-t border-white/10">
-            <div className="px-3 py-2 text-xs text-white/60 truncate" title={business.name}>
-              {business.name}
-            </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left font-medium text-white/70 hover:bg-white/5 hover:text-white/90 transition-colors active:bg-white/10"
-            >
-              <LogOut size={20} />
-              Log out
+            <div className="px-3 py-2 text-xs text-white/60 truncate" title={business.name}>{business.name}</div>
+            <button type="button" onClick={handleLogout} className="w-full min-h-[44px] flex items-center gap-3 px-3 py-2.5 rounded-xl text-left font-medium text-white/70 hover:bg-white/5 hover:text-white/90 transition-colors active:bg-white/10">
+              <LogOut size={20} /> Log out
             </button>
           </div>
         </aside>
       </>
 
-      {/* ----- Main content ----- */}
-      <div
-        className="flex-1 flex flex-col min-w-0 relative"
-        style={{
-          background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(200, 149, 46, 0.06), transparent 60%), #F5F1E9',
-        }}
-      >
-        {/* Top bar — safe-area for notched devices */}
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0 relative" style={{ background: 'radial-gradient(ellipse 80% 50% at 50% 0%, rgba(200, 149, 46, 0.06), transparent 60%), #F5F1E9' }}>
         <header
           className="sticky top-0 z-30 flex items-center gap-4 px-4 py-3.5 border-b border-forest-900/8"
-          style={{
-            backgroundColor: 'rgba(255, 251, 245, 0.92)',
-            backdropFilter: 'blur(12px)',
-            paddingTop: 'max(0.875rem, env(safe-area-inset-top))',
-          }}
+          style={{ backgroundColor: 'rgba(255, 251, 245, 0.92)', backdropFilter: 'blur(12px)', paddingTop: 'max(0.875rem, env(safe-area-inset-top))' }}
         >
-          <button
-            type="button"
-            aria-label="Open menu"
-            className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center p-2 text-forest-900 hover:bg-forest-900/10 rounded-xl transition-colors active:bg-forest-900/15"
-            onClick={() => setSidebarOpen(true)}
-          >
+          <button type="button" aria-label="Open menu" className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center p-2 text-forest-900 hover:bg-forest-900/10 rounded-xl transition-colors active:bg-forest-900/15" onClick={() => setSidebarOpen(true)}>
             <Menu size={24} />
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-forest-900 truncate tracking-tight">
               {{ overview: 'Overview', wallets: 'Wallets', transfers: 'Transfers', invoices: 'Invoices', kyb: 'Verification' }[section]}
             </h1>
-            <p className="text-sm text-forest-900/60 truncate mt-0.5">
-              {business.name} · {business.country}
-            </p>
+            <p className="text-sm text-forest-900/60 truncate mt-0.5">{business.name} · {business.country}</p>
           </div>
         </header>
 
-        <main
-          className="flex-1 p-4 md:p-6 lg:p-8"
-          style={{
-            paddingLeft: 'calc(1rem + env(safe-area-inset-left, 0px))',
-            paddingRight: 'calc(1rem + env(safe-area-inset-right, 0px))',
-            paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))',
-          }}
-        >
+        <main className="flex-1 p-4 md:p-6 lg:p-8" style={{ paddingLeft: 'calc(1rem + env(safe-area-inset-left, 0px))', paddingRight: 'calc(1rem + env(safe-area-inset-right, 0px))', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
           <AnimatePresence mode="wait">
             {section === 'overview' && (
-              <motion.div
-                key="overview"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-                className="max-w-5xl"
-              >
-                <p className="text-forest-900/70 mb-4 text-[15px]">
-                  At a glance: balances, live rate, and actions.
-                </p>
+              <motion.div key="overview" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-5xl">
+                <p className="text-forest-900/70 mb-4 text-[15px]">At a glance: balances, live rate, and actions.</p>
 
-                {/* Row 1: [ NGN ] [ GHS ] [ FX ] — 1 col mobile, 2 tablet, 3 desktop */}
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-4 items-start">
-                  {wallets.map((wallet) => (
-                    <motion.div
-                      key={wallet.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5 hover:shadow-xl hover:shadow-forest-900/8 transition-all duration-200"
-                    >
+                {/* Row 1: Primary wallet + FX widget */}
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-3 items-start">
+                  {/* Primary wallet — large */}
+                  {primaryWallet && (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5 hover:shadow-xl hover:shadow-forest-900/8 transition-all duration-200">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-forest-900/70">{wallet.label}</span>
+                        <span className="text-sm font-medium text-forest-900/70">Primary wallet</span>
                         <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-forest-900/10 text-forest-700">
-                          {getCurrencySymbol(wallet.currency)} {CURRENCIES[wallet.currency]?.name ?? wallet.currency}
+                          {getCurrencySymbol(primaryWallet.currency)} {CURRENCIES[primaryWallet.currency]?.name ?? primaryWallet.currency}
                         </span>
                       </div>
                       <div className="w-9 h-9 rounded-xl bg-forest-900/5 flex items-center justify-center mb-2">
                         <Wallet className="w-4 h-4 text-forest-700" />
                       </div>
-                      <p className="text-2xl font-bold text-forest-900 tracking-tight">
-                        {fmtBal(wallet.balance, wallet.currency)}
-                      </p>
+                      <p className="text-2xl font-bold text-forest-900 tracking-tight">{fmtBal(primaryWallet.balance, primaryWallet.currency)}</p>
                       <p className="text-xs text-forest-900/50 mt-1 font-medium">Available balance</p>
-                      <button
-                        type="button"
-                        onClick={() => setSection('wallets')}
-                        className="mt-4 w-full min-h-[44px] flex items-center justify-center gap-1.5 text-xs font-semibold text-gold-600 hover:text-gold-700 transition-colors rounded-xl active:bg-forest-900/5"
-                      >
-                        View in Wallets
-                        <ChevronRight size={14} />
+                      <button type="button" onClick={() => setSection('wallets')} className="mt-4 w-full min-h-[44px] flex items-center justify-center gap-1.5 text-xs font-semibold text-gold-600 hover:text-gold-700 transition-colors rounded-xl active:bg-forest-900/5">
+                        Manage wallets <ChevronRight size={14} />
                       </button>
                     </motion.div>
-                  ))}
-                  {/* Live FX widget — prominent, core product */}
-                  <div className="bg-forest-900 rounded-2xl border border-forest-800 shadow-xl shadow-forest-900/20 p-4 flex flex-col justify-center">
-                    <div className="flex items-center gap-2 text-gold-400/90 mb-2">
-                      <Zap size={18} className="text-gold-400" />
-                      <span className="text-xs font-semibold uppercase tracking-wider">Live FX rate</span>
+                  )}
+
+                  {/* Live FX widget — dynamic */}
+                  <div className="bg-forest-900 rounded-2xl border border-forest-800 shadow-xl shadow-forest-900/20 p-4 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 text-gold-400/90">
+                        <Zap size={18} className="text-gold-400" />
+                        <span className="text-xs font-semibold uppercase tracking-wider">Live FX rate</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => { setFxRefreshing(true); await fetchFxRate(); setFxRefreshing(false); }}
+                        className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                        title="Refresh rate"
+                      >
+                        <RefreshCw size={14} className={`text-white/60 ${fxRefreshing ? 'animate-spin' : ''}`} />
+                      </button>
                     </div>
                     {fxRate?.rate ? (
                       <>
                         <p className="text-2xl font-bold text-white tracking-tight">
-                          1 GHS = ₦{Number(fxRate.rate).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          1 {fxRate.base} = {getCurrencySymbol(fxRate.quote)} {Number(fxRate.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                         </p>
                         <p className="text-xs text-white/70 mt-1.5">
-                          Updated {fxUpdatedAgo}
+                          {CURRENCIES[fxRate.base]?.name} → {CURRENCIES[fxRate.quote]?.name} · Updated {fxUpdatedAgo}
                         </p>
                       </>
                     ) : (
                       <>
-                        <p className="text-lg font-medium text-white/90">
-                          Waiting for live FX feed…
-                        </p>
-                        <p className="text-xs text-white/60 mt-1">
-                          Rate will appear when available
-                        </p>
+                        <p className="text-lg font-medium text-white/90">Fetching rate…</p>
+                        <p className="text-xs text-white/60 mt-1">Rate will appear shortly</p>
                       </>
                     )}
                   </div>
                 </div>
+
+                {/* Secondary wallets — compact strip */}
+                {(fundedWallets.length > 0 || unfundedWallets.length > 0) && (
+                  <div className="mb-4">
+                    {secondaryWallets.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {secondaryWallets.map((w) => (
+                          <div key={w.id} className="flex items-center gap-2 bg-white/80 rounded-xl border border-forest-900/8 px-3 py-2 text-sm">
+                            <span className="text-forest-900/50 text-xs">{CURRENCIES[w.currency]?.flag}</span>
+                            <span className="font-medium text-forest-900">{fmtBal(w.balance, w.currency)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {unfundedWallets.length > 0 && !showAllWallets && (
+                      <button type="button" onClick={() => setShowAllWallets(true)} className="text-xs text-forest-900/50 hover:text-forest-900/70 flex items-center gap-1">
+                        +{unfundedWallets.length} more wallet{unfundedWallets.length > 1 ? 's' : ''} <ChevronDown size={12} />
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {wallets.length === 0 && (
                   <div className="bg-white/80 rounded-2xl border border-forest-900/8 shadow-lg p-5 mb-4">
@@ -823,12 +701,10 @@ export function Dashboard() {
                   </div>
                 )}
 
-                {/* Row 2: [ Send ] [ Convert ] — 1 col mobile, 2 tablet+ */}
+                {/* Row 2: Send + Convert */}
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-4 items-start">
-                  <motion.div
-                    className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 hover:shadow-xl transition-all cursor-pointer group"
-                    whileHover={{ y: -2 }}
-                  >
+                  {/* Send card */}
+                  <motion.div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 hover:shadow-xl transition-all group" whileHover={{ y: -2 }}>
                     <div className="flex items-center gap-3 mb-2">
                       <div className="w-10 h-10 rounded-xl bg-forest-900/10 flex items-center justify-center group-hover:bg-forest-900/15 transition-colors">
                         <Send className="w-5 h-5 text-forest-700" />
@@ -848,25 +724,13 @@ export function Dashboard() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-xs text-forest-900/70">
                         <Users size={14} />
-                        <span>Recent recipient</span>
+                        <span>Recipient</span>
                       </div>
-                      <select
-                        value={selectedCounterpartyId}
-                        onChange={(e) => setSelectedCounterpartyId(e.target.value)}
-                        className="w-full min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 pl-3 pr-9 py-2 text-sm text-forest-900/80 focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:12px_12px] bg-[right_0.5rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]"
-                      >
+                      <select value={selectedCounterpartyId} onChange={(e) => setSelectedCounterpartyId(e.target.value)} className="w-full min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 pl-3 pr-9 py-2 text-sm text-forest-900/80 focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:12px_12px] bg-[right_0.5rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]">
                         <option value="">{counterparties.length === 0 ? 'No saved beneficiaries' : 'Select recipient'}</option>
-                        {counterparties.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name} · {c.country}</option>
-                        ))}
+                        {counterparties.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.country}</option>)}
                       </select>
-                      <button
-                        type="button"
-                        onClick={() => setAddBeneficiaryOpen(true)}
-                        className="min-h-[44px] flex items-center text-xs font-semibold text-gold-600 hover:text-gold-700 transition-colors active:text-gold-800"
-                      >
-                        + Add beneficiary
-                      </button>
+                      <button type="button" onClick={() => setAddBeneficiaryOpen(true)} className="min-h-[44px] flex items-center text-xs font-semibold text-gold-600 hover:text-gold-700 transition-colors active:text-gold-800">+ Add beneficiary</button>
                       <button
                         type="button"
                         onClick={() => { setSendModalOpen(true); setSendQuote(null); setSendAmount(''); setSendError(null); }}
@@ -877,38 +741,29 @@ export function Dashboard() {
                       </button>
                     </div>
                   </motion.div>
-                  <motion.div
-                    className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 hover:shadow-xl transition-all group"
-                    whileHover={{ y: -2 }}
-                  >
+
+                  {/* Convert card — dynamic currencies */}
+                  <motion.div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 hover:shadow-xl transition-all group" whileHover={{ y: -2 }}>
                     <div className="flex items-center gap-3 mb-2">
                       <div className="w-10 h-10 rounded-xl bg-gold-500/15 flex items-center justify-center group-hover:bg-gold-500/25 transition-colors">
                         <ArrowRightLeft className="w-5 h-5 text-gold-600" />
                       </div>
                       <h3 className="font-semibold text-forest-900">Convert currency</h3>
                     </div>
-                    <p className="text-sm text-forest-900/60 mb-3">Convert between any supported currencies at live rates.</p>
-                    {fxRate && (
-                      <p className="text-xs text-forest-900/50 mb-3">Live: 1 GHS ≈ {fxRate.rate} NGN</p>
-                    )}
+                    <p className="text-sm text-forest-900/60 mb-3">Convert between wallets at live rates.</p>
+                    <div className="flex gap-2 mb-3">
+                      <select value={convertCardFrom} onChange={(e) => { setConvertCardFrom(e.target.value); if (e.target.value === convertCardTo) setConvertCardTo(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); setConvertCardQuote(null); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                        {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                      </select>
+                      <span className="flex items-center text-forest-900/40 text-xs">→</span>
+                      <select value={convertCardTo} onChange={(e) => { setConvertCardTo(e.target.value); if (e.target.value === convertCardFrom) setConvertCardFrom(CURRENCY_CODES.find((c) => c !== e.target.value) || 'NGN'); setConvertCardQuote(null); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                        {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                      </select>
+                    </div>
                     <div className="space-y-2">
-                      <label className="block text-xs font-medium text-forest-900/70">Amount (NGN)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        step="0.01"
-                        placeholder="e.g. 10000"
-                        value={convertCardAmount}
-                        onChange={(e) => { setConvertCardAmount(e.target.value); setConvertCardQuote(null); setExecuteConvertError(null); }}
-                        className="w-full min-h-[44px] rounded-xl border border-forest-900/15 bg-white/80 pl-3 pr-3 py-2 text-sm text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleConvertCardGetQuote(); }}
-                        disabled={convertCardLoading || !convertCardAmount}
-                        className="w-full min-h-[44px] rounded-xl bg-gold-500/90 text-white font-semibold text-sm hover:bg-gold-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
-                      >
+                      <label className="block text-xs font-medium text-forest-900/70">Amount ({convertCardFrom})</label>
+                      <input type="number" min="1" step="0.01" placeholder="e.g. 10000" value={convertCardAmount} onChange={(e) => { setConvertCardAmount(e.target.value); setConvertCardQuote(null); setExecuteConvertError(null); }} className="w-full min-h-[44px] rounded-xl border border-forest-900/15 bg-white/80 pl-3 pr-3 py-2 text-sm text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" onClick={(e) => e.stopPropagation()} />
+                      <button type="button" onClick={(e) => { e.stopPropagation(); handleConvertCardGetQuote(); }} disabled={convertCardLoading || !convertCardAmount} className="w-full min-h-[44px] rounded-xl bg-gold-500/90 text-white font-semibold text-sm hover:bg-gold-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5">
                         {convertCardLoading ? 'Getting quote…' : 'Get quote'}
                         {!convertCardLoading && <ChevronRight size={14} />}
                       </button>
@@ -917,50 +772,35 @@ export function Dashboard() {
                       <>
                         <div className="mt-3 rounded-xl bg-forest-900/5 border border-forest-900/10 p-3 text-sm">
                           <p className="text-forest-900/70 text-xs">Rate: {convertCardQuote.rateUsed}</p>
-                          <p className="font-semibold text-forest-900 mt-0.5">You get: ₵ {(Number(convertCardQuote.toAmount) / 100).toLocaleString()} GHS</p>
+                          <p className="font-semibold text-forest-900 mt-0.5">You get: {getCurrencySymbol(convertCardTo)} {(Number(convertCardQuote.toAmount) / 100).toLocaleString()} {convertCardTo}</p>
                         </div>
                         {executeConvertError && <p className="mt-2 text-sm text-red-600">{executeConvertError}</p>}
-                        <button
-                          type="button"
-                          onClick={handleExecuteConvert}
-                          disabled={executeConvertLoading}
-                          className="mt-2 w-full min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold text-sm hover:bg-forest-800 disabled:opacity-60 transition-colors"
-                        >
+                        <button type="button" onClick={handleExecuteConvert} disabled={executeConvertLoading} className="mt-2 w-full min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold text-sm hover:bg-forest-800 disabled:opacity-60 transition-colors">
                           {executeConvertLoading ? 'Converting…' : 'Execute convert'}
                         </button>
                       </>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => { setConvertModalOpen(true); setConvertQuote(null); setConvertAmount(''); setConvertFrom('NGN'); setConvertTo('GHS'); }}
-                      className="mt-3 w-full text-xs font-medium text-gold-600 hover:text-gold-700 text-center"
-                    >
-                      More options (other direction) →
-                    </button>
                   </motion.div>
                 </div>
 
-                {/* Recent activity — teaser only; full activity lives in Wallets */}
+                {/* Recent activity */}
                 <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h2 className="text-base font-semibold text-forest-900">Recent activity</h2>
-                    <button
-                      type="button"
-                      onClick={() => setSection('wallets')}
-                      className="text-xs font-semibold text-gold-600 hover:text-gold-700"
-                    >
-                      View all in Wallets →
-                    </button>
+                    <button type="button" onClick={() => setSection('wallets')} className="text-xs font-semibold text-gold-600 hover:text-gold-700">View all →</button>
                   </div>
                   {activityLoading ? (
                     <p className="text-sm text-forest-900/60 py-3">Loading…</p>
                   ) : activity.length > 0 ? (
-                    <ul className="space-y-2">
-                      {activity.slice(0, 3).map((item) => (
-                        <li key={item.id} className="flex items-center justify-between text-sm">
-                          <span className="text-forest-900/80">{item.date}</span>
-                          <span className="text-forest-900/70">{item.type}</span>
-                          <span className="font-medium text-forest-900">{item.amount} {item.currency}</span>
+                    <ul className="space-y-1.5">
+                      {activity.slice(0, 4).map((item) => (
+                        <li key={item.id} className="flex items-center justify-between text-sm py-1.5 border-b border-forest-900/5 last:border-0">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full ${item.direction === 'CREDIT' ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                            <span className="text-forest-900/60 text-xs">{item.date}</span>
+                          </div>
+                          <span className="text-forest-900/70 text-xs">{item.type}</span>
+                          <span className={`font-medium text-sm ${item.direction === 'CREDIT' ? 'text-emerald-700' : 'text-forest-900'}`}>{item.amount} {item.currency}</span>
                         </li>
                       ))}
                     </ul>
@@ -972,88 +812,42 @@ export function Dashboard() {
             )}
 
             {section === 'wallets' && (
-              <motion.div
-                key="wallets"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-                className="max-w-5xl"
-              >
+              <motion.div key="wallets" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-5xl">
                 <p className="text-forest-900/70 mb-6 text-[15px]">Balance, top-up, and full activity.</p>
 
-                <div className="grid gap-4 sm:grid-cols-2 mb-6">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mb-6">
                   {wallets.map((wallet) => (
-                    <motion.div
-                      key={wallet.id}
-                      className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5 hover:shadow-xl hover:shadow-forest-900/8 transition-all duration-200"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-forest-900">{wallet.label}</span>
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-forest-900/10 text-forest-700">
-                          {getCurrencySymbol(wallet.currency)} {CURRENCIES[wallet.currency]?.name ?? wallet.currency}
-                        </span>
+                    <motion.div key={wallet.id} className={`bg-white/90 backdrop-blur rounded-2xl border shadow-lg shadow-forest-900/5 p-4 hover:shadow-xl hover:shadow-forest-900/8 transition-all duration-200 ${Number(wallet.balance) > 0 ? 'border-forest-900/8' : 'border-forest-900/5 opacity-70'}`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-medium text-forest-900/50">{CURRENCIES[wallet.currency]?.flag} {wallet.currency}</span>
+                        {wallet.currency === primaryCurrency && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gold-500/20 text-gold-700">PRIMARY</span>}
                       </div>
-                      <div className="w-9 h-9 rounded-xl bg-forest-900/5 flex items-center justify-center mb-2">
-                        <Wallet className="w-4 h-4 text-forest-700" />
-                      </div>
-                      <p className="text-2xl font-bold text-forest-900 tracking-tight">
-                        {fmtBal(wallet.balance, wallet.currency)}
-                      </p>
-                      <p className="text-xs text-forest-900/60 mt-1">Available balance</p>
+                      <p className="text-xl font-bold text-forest-900 tracking-tight">{fmtBal(wallet.balance, wallet.currency)}</p>
+                      <p className="text-xs text-forest-900/50 mt-0.5">{CURRENCIES[wallet.currency]?.name}</p>
                     </motion.div>
                   ))}
                 </div>
 
-                {wallets.length === 0 && (
-                  <p className="text-forest-900/70 text-sm mb-6">No wallets yet.</p>
-                )}
-
                 <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-6 mb-8">
                   <h2 className="text-lg font-semibold text-forest-900 mb-4">Top up wallet</h2>
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <select
-                      value={topUpCurrency}
-                      onChange={(e) => setTopUpCurrency(e.target.value)}
-                      className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]"
-                    >
+                    <select value={topUpCurrency} onChange={(e) => setTopUpCurrency(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]">
                       {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c} — {CURRENCIES[c]?.name}</option>)}
                     </select>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="Amount"
-                      value={topUpAmount}
-                      onChange={(e) => setTopUpAmount(e.target.value)}
-                      className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleTopUp}
-                      disabled={topUpLoading}
-                      className="min-h-[44px] bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/25 hover:shadow-xl hover:shadow-forest-900/30 hover:bg-forest-800 transition-all duration-200 disabled:opacity-60 active:bg-forest-800"
-                    >
+                    <input type="number" min="0" step="0.01" placeholder="Amount" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+                    <button type="button" onClick={handleTopUp} disabled={topUpLoading} className="min-h-[44px] bg-forest-900 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-forest-900/25 hover:shadow-xl hover:shadow-forest-900/30 hover:bg-forest-800 transition-all duration-200 disabled:opacity-60 active:bg-forest-800">
                       {topUpLoading ? 'Topping up…' : 'Top up'}
                     </button>
                   </div>
-                  {topUpMessage && (
-                    <p className={`mt-3 text-sm ${topUpMessage.includes('success') ? 'text-forest-700 font-medium' : 'text-red-600'}`}>
-                      {topUpMessage}
-                    </p>
-                  )}
+                  {topUpMessage && <p className={`mt-3 text-sm ${topUpMessage.includes('success') ? 'text-forest-700 font-medium' : 'text-red-600'}`}>{topUpMessage}</p>}
                 </div>
 
-                {/* Activity — same table, Wallets = money management view */}
                 <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5">
                   <div className="flex items-center gap-2 mb-4">
                     <Receipt className="w-5 h-5 text-forest-700" />
                     <h2 className="text-lg font-semibold text-forest-900">Activity</h2>
                   </div>
-                  <div
-                    className="overflow-x-auto rounded-xl"
-                    style={{ WebkitOverflowScrolling: 'touch' }}
-                  >
+                  <div className="overflow-x-auto rounded-xl" style={{ WebkitOverflowScrolling: 'touch' }}>
                     {activityLoading ? (
                       <p className="text-sm text-forest-900/60 py-4">Loading…</p>
                     ) : activity.length > 0 ? (
@@ -1073,11 +867,11 @@ export function Dashboard() {
                             <tr key={item.id} className="border-b border-forest-900/5 last:border-0">
                               <td className="py-3 text-forest-900/80">{item.date}</td>
                               <td className="py-3 text-forest-900/80">{item.type}</td>
-                              <td className="py-3 text-right font-medium text-forest-900">{item.amount}</td>
+                              <td className="py-3 text-right font-medium">
+                                <span className={item.direction === 'CREDIT' ? 'text-emerald-700' : 'text-forest-900'}>{item.amount}</span>
+                              </td>
                               <td className="py-3">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-600/15 text-forest-800 text-xs font-medium">
-                                  {item.status}
-                                </span>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-600/15 text-forest-800 text-xs font-medium">{item.status}</span>
                               </td>
                               <td className="py-3 font-mono text-xs text-forest-900/70">{item.ref ?? '—'}</td>
                               <td className="py-3 text-forest-900/70">{item.currency}</td>
@@ -1086,9 +880,7 @@ export function Dashboard() {
                         </tbody>
                       </table>
                     ) : (
-                      <p className="text-forest-900/60 text-sm py-6 text-center">
-                        No wallet activity yet. Top up to see transactions here.
-                      </p>
+                      <p className="text-forest-900/60 text-sm py-6 text-center">No wallet activity yet. Top up to see transactions here.</p>
                     )}
                   </div>
                 </div>
@@ -1096,14 +888,7 @@ export function Dashboard() {
             )}
 
             {section === 'transfers' && (
-              <motion.div
-                key="transfers"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-                className="max-w-5xl"
-              >
+              <motion.div key="transfers" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-5xl">
                 <p className="text-forest-900/70 mb-6 text-[15px]">Your cross-border transfers.</p>
                 <div className="flex gap-4 flex-col lg:flex-row items-start">
                   <div className="flex-1 min-w-0 w-full lg:w-auto bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5">
@@ -1111,7 +896,7 @@ export function Dashboard() {
                     {transfersLoading ? (
                       <p className="text-sm text-forest-900/60 py-4">Loading…</p>
                     ) : transfersList.length === 0 ? (
-                      <p className="text-sm text-forest-900/60 py-4">No transfers yet. Use Send NGN → GHS from Overview to create one.</p>
+                      <p className="text-sm text-forest-900/60 py-4">No transfers yet. Go to Overview to send your first cross-border payment.</p>
                     ) : (
                       <div className="overflow-x-auto rounded-xl" style={{ WebkitOverflowScrolling: 'touch' }}>
                         <table className="w-full text-sm min-w-[400px]">
@@ -1125,17 +910,11 @@ export function Dashboard() {
                           </thead>
                           <tbody>
                             {transfersList.map((t) => (
-                              <tr
-                                key={t.id}
-                                className={`border-b border-forest-900/5 last:border-0 cursor-pointer hover:bg-forest-900/5 ${selectedTransferId === t.id ? 'bg-forest-900/10' : ''}`}
-                                onClick={() => setSelectedTransferId(selectedTransferId === t.id ? null : t.id)}
-                              >
+                              <tr key={t.id} className={`border-b border-forest-900/5 last:border-0 cursor-pointer hover:bg-forest-900/5 ${selectedTransferId === t.id ? 'bg-forest-900/10' : ''}`} onClick={() => setSelectedTransferId(selectedTransferId === t.id ? null : t.id)}>
                                 <td className="py-2 text-forest-900/80">{new Date(t.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                                 <td className="py-2 text-forest-900/80">{t.counterparty?.name ?? '—'}</td>
                                 <td className="py-2 text-right font-medium text-forest-900">{t.fromCurrency} {(Number(t.fromAmount) / 100).toLocaleString()} → {t.toCurrency} {(Number(t.toAmount) / 100).toLocaleString()}</td>
-                                <td className="py-2">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-600/15 text-forest-800 text-xs font-medium">{t.status}</span>
-                                </td>
+                                <td className="py-2"><span className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-600/15 text-forest-800 text-xs font-medium">{t.status}</span></td>
                               </tr>
                             ))}
                           </tbody>
@@ -1154,46 +933,30 @@ export function Dashboard() {
                         <div><dt className="text-forest-900/60">Status</dt><dd><span className="inline-flex items-center px-2 py-0.5 rounded-md bg-forest-600/15 text-forest-800 text-xs font-medium">{transferDetail.status}</span></dd></div>
                         <div><dt className="text-forest-900/60">Created</dt><dd className="text-forest-900/80">{new Date(transferDetail.createdAt).toLocaleString()}</dd></div>
                       </dl>
-                      {(transferDetail.status === 'DRAFT' || transferDetail.status === 'PENDING_FUNDS') ? (
-                        <p className="mt-3 text-xs text-forest-900/60">You can cancel only while the transfer is DRAFT or PENDING_FUNDS. Once it’s Processing or Settled, it cannot be cancelled.</p>
-                      ) : (transferDetail.status !== 'CANCELLED' && transferDetail.status !== 'FAILED') ? (
-                        <p className="mt-3 text-xs text-forest-900/60">This transfer can no longer be cancelled (only DRAFT or PENDING_FUNDS can be cancelled).</p>
-                      ) : null}
+                      {(transferDetail.status === 'DRAFT' || transferDetail.status === 'PENDING_FUNDS') && (
+                        <p className="mt-3 text-xs text-forest-900/60">You can cancel while the transfer is DRAFT or PENDING_FUNDS.</p>
+                      )}
                       <div className="mt-4 flex flex-wrap gap-2">
                         {(transferDetail.status === 'DRAFT' || transferDetail.status === 'PENDING_FUNDS') && (
-                          <button
-                            type="button"
-                            onClick={handleCancelTransfer}
-                            disabled={cancelTransferLoading}
-                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-red-500/30 text-red-700 hover:bg-red-500/10 disabled:opacity-60"
-                          >
+                          <button type="button" onClick={handleCancelTransfer} disabled={cancelTransferLoading} className="text-xs font-medium px-3 py-1.5 rounded-xl border border-red-500/30 text-red-700 hover:bg-red-500/10 disabled:opacity-60">
                             {cancelTransferLoading ? 'Cancelling…' : 'Cancel transfer'}
                           </button>
                         )}
-                        <button type="button" onClick={() => setSelectedTransferId(null)} className="text-xs font-medium text-gold-600 hover:text-gold-700">Close detail</button>
+                        <button type="button" onClick={() => setSelectedTransferId(null)} className="text-xs font-medium text-gold-600 hover:text-gold-700">Close</button>
                       </div>
                     </div>
                   )}
                 </div>
               </motion.div>
             )}
-            {section === 'kyb' && (
-              <motion.div
-                key="kyb"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-                className="max-w-3xl"
-              >
-                <p className="text-forest-900/70 mb-6 text-[15px]">Verify your business to unlock full features and higher limits.</p>
 
+            {section === 'kyb' && (
+              <motion.div key="kyb" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-3xl">
+                <p className="text-forest-900/70 mb-6 text-[15px]">Verify your business to unlock full features and higher limits.</p>
                 {business.status === 'ACTIVE' ? (
                   <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-6">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-green-500/15 flex items-center justify-center">
-                        <CheckCircle2 className="w-6 h-6 text-green-600" />
-                      </div>
+                      <div className="w-12 h-12 rounded-xl bg-green-500/15 flex items-center justify-center"><CheckCircle2 className="w-6 h-6 text-green-600" /></div>
                       <div>
                         <h2 className="text-lg font-semibold text-forest-900">Verified</h2>
                         <p className="text-sm text-forest-900/60">Your business has been verified. All features are unlocked.</p>
@@ -1209,7 +972,6 @@ export function Dashboard() {
                         <p className="text-xs text-amber-700 mt-1">Upload your business documents to complete verification. This unlocks higher transfer limits and faster settlements.</p>
                       </div>
                     </div>
-
                     <div className="space-y-4">
                       {[
                         { type: 'CAC_CERTIFICATE', label: 'CAC Certificate', desc: 'Certificate of incorporation from the Corporate Affairs Commission' },
@@ -1220,9 +982,7 @@ export function Dashboard() {
                         <div key={doc.type} className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5">
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-forest-900/5 flex items-center justify-center flex-shrink-0">
-                                <FileText className="w-5 h-5 text-forest-700" />
-                              </div>
+                              <div className="w-10 h-10 rounded-xl bg-forest-900/5 flex items-center justify-center flex-shrink-0"><FileText className="w-5 h-5 text-forest-700" /></div>
                               <div>
                                 <h3 className="font-semibold text-forest-900">{doc.label}</h3>
                                 <p className="text-xs text-forest-900/60 mt-1">{doc.desc}</p>
@@ -1234,8 +994,7 @@ export function Dashboard() {
                             </div>
                           </div>
                           <label className="mt-4 flex items-center justify-center gap-2 w-full min-h-[44px] rounded-xl border-2 border-dashed border-forest-900/15 bg-forest-900/[0.02] text-sm font-medium text-forest-900/60 hover:border-gold-500/40 hover:text-forest-900/80 hover:bg-forest-900/[0.04] cursor-pointer transition-all">
-                            <Upload className="w-4 h-4" />
-                            Upload document
+                            <Upload className="w-4 h-4" /> Upload document
                             <input type="file" className="sr-only" accept=".pdf,.jpg,.jpeg,.png" onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
@@ -1244,13 +1003,7 @@ export function Dashboard() {
                               const formData = new FormData();
                               formData.append('file', file);
                               formData.append('documentType', doc.type);
-                              try {
-                                await fetch(`${API_BASE}/kyb/documents`, {
-                                  method: 'POST',
-                                  headers: { Authorization: `Bearer ${token}` },
-                                  body: formData,
-                                });
-                              } catch { /* handled */ }
+                              try { await fetch(`${API_BASE}/kyb/documents`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData }); } catch { /* handled */ }
                             }} />
                           </label>
                         </div>
@@ -1262,23 +1015,14 @@ export function Dashboard() {
             )}
 
             {section === 'invoices' && (
-              <motion.div
-                key="invoices"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-                className="max-w-5xl"
-              >
+              <motion.div key="invoices" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-5xl">
                 <p className="text-forest-900/70 mb-6 text-[15px]">Create and manage invoices for your business.</p>
                 <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-forest-900">Invoices</h2>
                     <span className="text-xs text-forest-900/50 bg-forest-900/5 px-3 py-1 rounded-full">Coming soon</span>
                   </div>
-                  <p className="text-sm text-forest-900/60">
-                    Create invoices, send payment links, and track when your clients pay. Invoice management is ready in the API — UI launching soon.
-                  </p>
+                  <p className="text-sm text-forest-900/60">Create invoices, send payment links, and track when your clients pay. Invoice management is ready in the API — UI launching soon.</p>
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-xl bg-forest-900/5 border border-forest-900/8 p-4">
                       <p className="text-sm font-medium text-forest-900">Create invoices</p>
@@ -1303,75 +1047,37 @@ export function Dashboard() {
       {/* Add beneficiary modal */}
       {addBeneficiaryOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => !addBeneficiaryLoading && setAddBeneficiaryOpen(false)}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-xl p-6 w-full max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-forest-900 mb-4">Add beneficiary</h3>
             <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Name"
-                value={newBeneficiaryName}
-                onChange={(e) => setNewBeneficiaryName(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
-              />
-              <select
-                value={newBeneficiaryCountry}
-                onChange={(e) => setNewBeneficiaryCountry(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500"
-              >
+              <input type="text" placeholder="Name" value={newBeneficiaryName} onChange={(e) => setNewBeneficiaryName(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+              <select value={newBeneficiaryCountry} onChange={(e) => setNewBeneficiaryCountry(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
                 {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name} ({c.code})</option>)}
               </select>
-              <select
-                value={newBeneficiaryPayoutType}
-                onChange={(e) => setNewBeneficiaryPayoutType(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500"
-              >
+              <select value={newBeneficiaryPayoutType} onChange={(e) => setNewBeneficiaryPayoutType(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
                 <option value="BANK">Bank</option>
                 <option value="MOBILE">Mobile money</option>
               </select>
-              <input
-                type="text"
-                placeholder="Account number or mobile number"
-                value={newBeneficiaryPayoutRef}
-                onChange={(e) => setNewBeneficiaryPayoutRef(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
-              />
+              <input type="text" placeholder="Account number or mobile number" value={newBeneficiaryPayoutRef} onChange={(e) => setNewBeneficiaryPayoutRef(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
             </div>
             {addBeneficiaryError && <p className="mt-2 text-sm text-red-600">{addBeneficiaryError}</p>}
             <div className="mt-4 flex gap-2">
               <button type="button" onClick={() => !addBeneficiaryLoading && setAddBeneficiaryOpen(false)} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 text-forest-900 font-medium">Cancel</button>
-              <button type="button" onClick={handleAddBeneficiary} disabled={addBeneficiaryLoading} className="flex-1 min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold disabled:opacity-60">{(addBeneficiaryLoading) ? 'Adding…' : 'Add'}</button>
+              <button type="button" onClick={handleAddBeneficiary} disabled={addBeneficiaryLoading} className="flex-1 min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold disabled:opacity-60">{addBeneficiaryLoading ? 'Adding…' : 'Add'}</button>
             </div>
           </motion.div>
         </div>
       )}
 
-      {/* Send NGN → GHS modal */}
+      {/* Send modal */}
       {sendModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => !sendLoading && setSendModalOpen(false)}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-xl p-6 w-full max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-forest-900 mb-4">Send {sendFromCurrency} → {sendToCurrency}</h3>
             <p className="text-sm text-forest-900/60 mb-3">Recipient: {counterparties.find((c) => c.id === selectedCounterpartyId)?.name ?? '—'}</p>
             <div className="space-y-3">
               <label className="block text-sm font-medium text-forest-900">Amount ({sendFromCurrency})</label>
-              <input
-                type="number"
-                min="1"
-                step="0.01"
-                placeholder="0.00"
-                value={sendAmount}
-                onChange={(e) => { setSendAmount(e.target.value); setSendQuote(null); }}
-                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
-              />
+              <input type="number" min="1" step="0.01" placeholder="0.00" value={sendAmount} onChange={(e) => { setSendAmount(e.target.value); setSendQuote(null); }} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
               {sendQuote && (
                 <div className="rounded-xl bg-forest-900/5 border border-forest-900/10 p-3 text-sm">
                   <p className="text-forest-900/70">Rate: {sendQuote.rateUsed}</p>
@@ -1383,24 +1089,19 @@ export function Dashboard() {
             <div className="mt-4 flex gap-2">
               <button type="button" onClick={() => !sendLoading && setSendModalOpen(false)} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 text-forest-900 font-medium">Cancel</button>
               {!sendQuote ? (
-                <button type="button" onClick={handleSendGetQuote} disabled={sendLoading || !sendAmount} className="flex-1 min-h-[44px] rounded-xl bg-gold-500 text-white font-semibold disabled:opacity-60">{(sendLoading) ? 'Getting quote…' : 'Get quote'}</button>
+                <button type="button" onClick={handleSendGetQuote} disabled={sendLoading || !sendAmount} className="flex-1 min-h-[44px] rounded-xl bg-gold-500 text-white font-semibold disabled:opacity-60">{sendLoading ? 'Getting quote…' : 'Get quote'}</button>
               ) : (
-                <button type="button" onClick={handleSendConfirm} disabled={sendLoading} className="flex-1 min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold disabled:opacity-60">{(sendLoading) ? 'Sending…' : 'Confirm send'}</button>
+                <button type="button" onClick={handleSendConfirm} disabled={sendLoading} className="flex-1 min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold disabled:opacity-60">{sendLoading ? 'Sending…' : 'Confirm send'}</button>
               )}
             </div>
           </motion.div>
         </div>
       )}
 
-      {/* Convert currency modal */}
+      {/* Convert modal */}
       {convertModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setConvertModalOpen(false)}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-xl p-6 w-full max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-forest-900 mb-4">Convert currency</h3>
             <div className="space-y-3">
               <div className="flex gap-2">
@@ -1413,15 +1114,7 @@ export function Dashboard() {
                 </select>
               </div>
               <label className="block text-sm font-medium text-forest-900">Amount ({convertFrom})</label>
-              <input
-                type="number"
-                min="1"
-                step="0.01"
-                placeholder="0.00"
-                value={convertAmount}
-                onChange={(e) => { setConvertAmount(e.target.value); setConvertQuote(null); }}
-                className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500"
-              />
+              <input type="number" min="1" step="0.01" placeholder="0.00" value={convertAmount} onChange={(e) => { setConvertAmount(e.target.value); setConvertQuote(null); }} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
               {convertQuote && (
                 <div className="rounded-xl bg-forest-900/5 border border-forest-900/10 p-3 text-sm">
                   <p className="text-forest-900/70">Rate: {convertQuote.rateUsed}</p>
@@ -1431,7 +1124,7 @@ export function Dashboard() {
             </div>
             <div className="mt-4 flex gap-2">
               <button type="button" onClick={() => setConvertModalOpen(false)} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 text-forest-900 font-medium">Close</button>
-              <button type="button" onClick={handleConvertGetQuote} disabled={convertLoading || !convertAmount} className="flex-1 min-h-[44px] rounded-xl bg-gold-500 text-white font-semibold disabled:opacity-60">{(convertLoading) ? 'Getting quote…' : 'Get quote'}</button>
+              <button type="button" onClick={handleConvertGetQuote} disabled={convertLoading || !convertAmount} className="flex-1 min-h-[44px] rounded-xl bg-gold-500 text-white font-semibold disabled:opacity-60">{convertLoading ? 'Getting quote…' : 'Get quote'}</button>
             </div>
           </motion.div>
         </div>
