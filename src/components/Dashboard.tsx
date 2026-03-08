@@ -739,7 +739,7 @@ export function Dashboard() {
                       </select>
                       <span className="flex items-center text-forest-900/40 text-xs">→</span>
                       <select value={sendToCurrency} onChange={(e) => { setSendToCurrency(e.target.value); if (e.target.value === sendFromCurrency) setSendFromCurrency(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
-                        {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                        {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                       </select>
                     </div>
                     <div className="space-y-2">
@@ -778,7 +778,7 @@ export function Dashboard() {
                       </select>
                       <span className="flex items-center text-forest-900/40 text-xs">→</span>
                       <select value={convertCardTo} onChange={(e) => { setConvertCardTo(e.target.value); if (e.target.value === convertCardFrom) setConvertCardFrom(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); setConvertCardQuote(null); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
-                        {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                        {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                       </select>
                     </div>
                     <div className="space-y-2">
@@ -1162,7 +1162,7 @@ export function Dashboard() {
                 </select>
                 <span className="flex items-center text-forest-900/60">→</span>
                 <select value={convertTo} onChange={(e) => { setConvertTo(e.target.value); if (e.target.value === convertFrom) setConvertFrom(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); setConvertQuote(null); }} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900">
-                  {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                  {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                 </select>
               </div>
               <label className="block text-sm font-medium text-forest-900">Amount ({convertFrom})</label>
