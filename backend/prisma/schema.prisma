@@ -62,6 +62,7 @@ enum EntryType {
   TRANSFER_CANCEL
   FEE_CHARGE
   FX_CONVERSION
+  INTERNAL_TRANSFER
 
   @@map("entry_type")
 }
@@ -251,4 +252,20 @@ model Invoice {
   counterparty    Counterparty  @relation(fields: [counterpartyId], references: [id])
 
   @@map("invoices")
+}
+
+model PendingClaim {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  senderBusinessId   String       @map("sender_business_id") @db.Uuid
+  senderUserId       String       @map("sender_user_id") @db.Uuid
+  recipientEmail     String       @map("recipient_email")
+  currency           CurrencyCode
+  amount             BigInt
+  memo               String?
+  claimed            Boolean      @default(false)
+  claimedByBusinessId String?     @map("claimed_by_business_id") @db.Uuid
+  claimedAt          DateTime?    @map("claimed_at")
+  createdAt          DateTime     @default(now()) @map("created_at")
+
+  @@map("pending_claims")
 }

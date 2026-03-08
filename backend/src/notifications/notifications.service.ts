@@ -80,6 +80,29 @@ export class NotificationsService {
     await this.sendEmail({ to: email, subject, html });
   }
 
+  async notifyMoneySent(params: {
+    recipientEmail: string;
+    senderName: string;
+    amount: number;
+    currency: string;
+    isObeamUser: boolean;
+  }): Promise<void> {
+    const { recipientEmail, senderName, amount, currency, isObeamUser } = params;
+    const frontendUrl = this.config.get<string>('CORS_ORIGIN') || 'https://obeam.vercel.app';
+
+    const subject = isObeamUser
+      ? `${senderName} sent you ${currency} ${amount.toLocaleString()} on Obeam`
+      : `${senderName} sent you ${currency} ${amount.toLocaleString()} — sign up to claim`;
+
+    const actionText = isObeamUser
+      ? `<p>The funds are already in your Obeam wallet. <a href="${frontendUrl}" style="color:#C8952E;font-weight:bold;">Open Obeam</a> to see your balance.</p>`
+      : `<p>Sign up for Obeam to claim your money. It takes 30 seconds.</p><p><a href="${frontendUrl}" style="display:inline-block;background:#0A291B;color:white;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold;">Sign up & claim your ${currency} ${amount.toLocaleString()}</a></p>`;
+
+    const html = `<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}.container{max-width:600px;margin:0 auto;padding:20px}.header{background:#0A291B;color:white;padding:20px;text-align:center;border-radius:12px 12px 0 0}.content{padding:24px;background:#FFFBF5;border:1px solid #E8E0D0;border-top:none;border-radius:0 0 12px 12px}.amount{font-size:28px;font-weight:bold;color:#0A291B;margin:16px 0}.footer{text-align:center;padding:16px;font-size:12px;color:#999}</style></head><body><div class="container"><div class="header"><h1 style="margin:0;font-size:22px;">Obeam</h1></div><div class="content"><h2 style="margin-top:0;">You received money!</h2><p><strong>${senderName}</strong> sent you:</p><div class="amount">${currency} ${amount.toLocaleString()}</div>${actionText}</div><div class="footer"><p>Obeam — Cross-border payments for African businesses</p></div></div></body></html>`;
+
+    await this.sendEmail({ to: recipientEmail, subject, html });
+  }
+
   private getTransferStatusEmailHtml(params: { transferId: string; status: string; previousStatus?: string }): string {
     const statusMessages: Record<string, string> = {
       CREATED: 'Your transfer has been created and is pending confirmation.',

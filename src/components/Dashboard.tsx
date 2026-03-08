@@ -13,7 +13,6 @@ import {
   Receipt,
   Zap,
   ChevronRight,
-  Users,
   FileText,
   Shield,
   Upload,
@@ -85,7 +84,7 @@ export function Dashboard() {
   const [fxRefreshing, setFxRefreshing] = useState(false);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
-  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string>('');
+  const [selectedCounterpartyId, setSelectedCounterpartyId] = useState<string>(''); void setSelectedCounterpartyId;
   const [addBeneficiaryOpen, setAddBeneficiaryOpen] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [convertModalOpen, setConvertModalOpen] = useState(false);
@@ -118,6 +117,12 @@ export function Dashboard() {
   const [executeConvertLoading, setExecuteConvertLoading] = useState(false);
   const [executeConvertError, setExecuteConvertError] = useState<string | null>(null);
   const [cancelTransferLoading, setCancelTransferLoading] = useState(false);
+  const [internalRecipientEmail, setInternalRecipientEmail] = useState('');
+  const [internalSendCurrency, setInternalSendCurrency] = useState('');
+  const [internalSendAmount, setInternalSendAmount] = useState('');
+  const [internalSendMemo, setInternalSendMemo] = useState('');
+  const [internalSendLoading, setInternalSendLoading] = useState(false);
+  const [internalSendResult, setInternalSendResult] = useState<string | null>(null);
   const [depositCurrency, setDepositCurrency] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [depositLoading, setDepositLoading] = useState(false);
@@ -171,6 +176,7 @@ export function Dashboard() {
         setConvertFrom(primary);
         setConvertCardFrom(primary);
         setTopUpCurrency(primary);
+        setInternalSendCurrency(primary);
         setDepositCurrency(primary);
         setWithdrawCurrency(primary);
         const defaultTo = primary === 'GHS' ? 'NGN' : 'GHS';
@@ -505,6 +511,38 @@ export function Dashboard() {
       setTopUpMessage('Network error.');
     } finally {
       setTopUpLoading(false);
+    }
+  };
+
+  const handleInternalSend = async () => {
+    const amountMajor = parseFloat(internalSendAmount);
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) { setInternalSendResult('Enter a valid amount.'); return; }
+    if (!internalRecipientEmail) { setInternalSendResult('Enter a recipient email.'); return; }
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    setInternalSendLoading(true);
+    setInternalSendResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ recipientEmail: internalRecipientEmail, currency: internalSendCurrency, amount: amountMajor, memo: internalSendMemo || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = Array.isArray(data.message) ? data.message[0] : data.message;
+        setInternalSendResult(msg || 'Send failed.');
+        return;
+      }
+      setInternalSendResult(data.message);
+      setInternalSendAmount('');
+      setInternalSendMemo('');
+      setInternalRecipientEmail('');
+      refetchWallets();
+    } catch {
+      setInternalSendResult('Network error.');
+    } finally {
+      setInternalSendLoading(false);
     }
   };
 
@@ -855,42 +893,33 @@ export function Dashboard() {
 
                 {/* Row 2: Send + Convert */}
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-4 items-start">
-                  {/* Send card */}
+                  {/* Send money card */}
                   <motion.div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 hover:shadow-xl transition-all group" whileHover={{ y: -2 }}>
                     <div className="flex items-center gap-3 mb-2">
                       <div className="w-10 h-10 rounded-xl bg-forest-900/10 flex items-center justify-center group-hover:bg-forest-900/15 transition-colors">
                         <Send className="w-5 h-5 text-forest-700" />
                       </div>
-                      <h3 className="font-semibold text-forest-900">Send cross-border</h3>
+                      <h3 className="font-semibold text-forest-900">Send money</h3>
                     </div>
-                    <p className="text-sm text-forest-900/60 mb-3">Send to suppliers or partners across Africa.</p>
-                    <div className="flex gap-2 mb-2">
-                      <select value={sendFromCurrency} onChange={(e) => { setSendFromCurrency(e.target.value); if (e.target.value === sendToCurrency) setSendToCurrency(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
-                        {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
-                      </select>
-                      <span className="flex items-center text-forest-900/40 text-xs">→</span>
-                      <select value={sendToCurrency} onChange={(e) => { setSendToCurrency(e.target.value); if (e.target.value === sendFromCurrency) setSendFromCurrency(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
-                        {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
-                      </select>
-                    </div>
+                    <p className="text-sm text-forest-900/60 mb-3">Send to anyone by email. If they're on Obeam it's instant. If not, they'll sign up to claim.</p>
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-forest-900/70">
-                        <Users size={14} />
-                        <span>Recipient</span>
+                      <input type="email" placeholder="Recipient email" value={internalRecipientEmail} onChange={(e) => setInternalRecipientEmail(e.target.value)} className="w-full min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-3 py-2 text-sm text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+                      <div className="flex gap-2">
+                        <select value={internalSendCurrency} onChange={(e) => setInternalSendCurrency(e.target.value)} className="w-28 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                          {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                        </select>
+                        <input type="number" min="0" step="0.01" placeholder="Amount" value={internalSendAmount} onChange={(e) => setInternalSendAmount(e.target.value)} className="flex-1 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-3 py-2 text-sm text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
                       </div>
-                      <select value={selectedCounterpartyId} onChange={(e) => setSelectedCounterpartyId(e.target.value)} className="w-full min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 pl-3 pr-9 py-2 text-sm text-forest-900/80 focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:12px_12px] bg-[right_0.5rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]">
-                        <option value="">{counterparties.length === 0 ? 'No saved beneficiaries' : 'Select recipient'}</option>
-                        {counterparties.map((c) => <option key={c.id} value={c.id}>{c.name} · {c.country}</option>)}
-                      </select>
-                      <button type="button" onClick={() => setAddBeneficiaryOpen(true)} className="min-h-[44px] flex items-center text-xs font-semibold text-gold-600 hover:text-gold-700 transition-colors active:text-gold-800">+ Add beneficiary</button>
+                      <input type="text" placeholder="Memo (optional)" value={internalSendMemo} onChange={(e) => setInternalSendMemo(e.target.value)} className="w-full min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-3 py-1.5 text-xs text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
                       <button
                         type="button"
-                        onClick={() => { setSendModalOpen(true); setSendQuote(null); setSendAmount(''); setSendError(null); }}
-                        disabled={!selectedCounterpartyId}
-                        className="mt-2 w-full min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold text-sm hover:bg-forest-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        onClick={handleInternalSend}
+                        disabled={internalSendLoading || !internalRecipientEmail || !internalSendAmount}
+                        className="w-full min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold text-sm hover:bg-forest-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        Send {sendFromCurrency} → {sendToCurrency}
+                        {internalSendLoading ? 'Sending…' : 'Send'}
                       </button>
+                      {internalSendResult && <p className={`text-xs p-2 rounded-lg ${internalSendResult.includes('Sent') || internalSendResult.includes('reserved') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>{internalSendResult}</p>}
                     </div>
                   </motion.div>
 

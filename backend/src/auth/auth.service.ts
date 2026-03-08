@@ -1,17 +1,21 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, Logger, Inject, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { InternalTransfersService } from '../internal-transfers/internal-transfers.service';
 
 const SALT_ROUNDS = 10;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    @Optional() @Inject(InternalTransfersService) private readonly internalTransfers?: InternalTransfersService,
   ) {}
 
   async signup(dto: SignupDto) {
@@ -50,6 +54,18 @@ export class AuthService {
       businessId: result.business.id,
     });
 
+    let claimedFunds: { currency: string; amount: number; from: string }[] = [];
+    if (this.internalTransfers) {
+      try {
+        claimedFunds = await this.internalTransfers.claimPending(dto.email, result.business.id);
+        if (claimedFunds.length > 0) {
+          this.logger.log(`New signup ${dto.email} claimed ${claimedFunds.length} pending transfer(s)`);
+        }
+      } catch (err) {
+        this.logger.error(`Failed to claim pending transfers for ${dto.email}`, err);
+      }
+    }
+
     return {
       access_token: accessToken,
       user: {
@@ -58,6 +74,7 @@ export class AuthService {
         businessId: result.business.id,
         businessName: result.business.name,
       },
+      claimedFunds: claimedFunds.length > 0 ? claimedFunds : undefined,
     };
   }
 
