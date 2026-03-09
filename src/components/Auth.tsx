@@ -60,6 +60,10 @@ export function Auth() {
       }
       if (data.access_token) {
         localStorage.setItem('obeam_token', data.access_token);
+        if (data.claimedFunds && data.claimedFunds.length > 0) {
+          const claims = data.claimedFunds.map((c: any) => `${c.currency} ${c.amount.toLocaleString()} from ${c.from}`).join(', ');
+          localStorage.setItem('obeam_claimed', claims);
+        }
         window.history.pushState({}, '', '/dashboard');
         window.dispatchEvent(new PopStateEvent('popstate'));
       } else {

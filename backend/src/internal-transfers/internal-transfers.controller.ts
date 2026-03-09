@@ -14,6 +14,7 @@ export class InternalTransfersController {
     @Body('recipientEmail') recipientEmail: string,
     @Body('currency') currency: string,
     @Body('amount') amount: number,
+    @Body('receiveCurrency') receiveCurrency?: string,
     @Body('memo') memo?: string,
   ) {
     return this.transfers.send({
@@ -22,6 +23,7 @@ export class InternalTransfersController {
       recipientEmail,
       currency,
       amount,
+      receiveCurrency,
       memo,
     });
   }

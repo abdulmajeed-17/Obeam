@@ -121,6 +121,7 @@ export function Dashboard() {
   const [internalSendCurrency, setInternalSendCurrency] = useState('');
   const [internalSendAmount, setInternalSendAmount] = useState('');
   const [internalSendMemo, setInternalSendMemo] = useState('');
+  const [internalReceiveCurrency, setInternalReceiveCurrency] = useState('');
   const [internalSendLoading, setInternalSendLoading] = useState(false);
   const [internalSendResult, setInternalSendResult] = useState<string | null>(null);
   const [depositCurrency, setDepositCurrency] = useState('');
@@ -177,6 +178,7 @@ export function Dashboard() {
         setConvertCardFrom(primary);
         setTopUpCurrency(primary);
         setInternalSendCurrency(primary);
+        setInternalReceiveCurrency(primary === 'NGN' ? 'GHS' : 'NGN');
         setDepositCurrency(primary);
         setWithdrawCurrency(primary);
         const defaultTo = primary === 'GHS' ? 'NGN' : 'GHS';
@@ -526,7 +528,7 @@ export function Dashboard() {
       const res = await fetch(`${API_BASE}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ recipientEmail: internalRecipientEmail, currency: internalSendCurrency, amount: amountMajor, memo: internalSendMemo || undefined }),
+        body: JSON.stringify({ recipientEmail: internalRecipientEmail, currency: internalSendCurrency, amount: amountMajor, receiveCurrency: internalReceiveCurrency !== internalSendCurrency ? internalReceiveCurrency : undefined, memo: internalSendMemo || undefined }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -793,6 +795,16 @@ export function Dashboard() {
               <motion.div key="overview" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-5xl">
                 <p className="text-forest-900/70 mb-4 text-sm sm:text-[15px]">At a glance: balances, live rate, and actions.</p>
 
+                {(() => { const claimed = localStorage.getItem('obeam_claimed'); if (!claimed) return null; localStorage.removeItem('obeam_claimed'); return (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-4 flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5"><span className="text-lg">🎉</span></div>
+                    <div>
+                      <p className="font-semibold text-emerald-800 text-sm">You have money waiting!</p>
+                      <p className="text-emerald-700 text-xs mt-0.5">Claimed: {claimed}. Check your wallets.</p>
+                    </div>
+                  </motion.div>
+                ); })()}
+
                 {/* Row 1: Primary wallet + FX widget */}
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 mb-3 items-start">
                   {/* Primary wallet — large */}
@@ -901,15 +913,22 @@ export function Dashboard() {
                       </div>
                       <h3 className="font-semibold text-forest-900">Send money</h3>
                     </div>
-                    <p className="text-sm text-forest-900/60 mb-3">Send to anyone by email. If they're on Obeam it's instant. If not, they'll sign up to claim.</p>
+                    <p className="text-sm text-forest-900/60 mb-3">Send to anyone by email. Cross-currency? We convert automatically.</p>
                     <div className="space-y-2">
                       <input type="email" placeholder="Recipient email" value={internalRecipientEmail} onChange={(e) => setInternalRecipientEmail(e.target.value)} className="w-full min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-3 py-2 text-sm text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
-                      <div className="flex gap-2">
-                        <select value={internalSendCurrency} onChange={(e) => setInternalSendCurrency(e.target.value)} className="w-28 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                      <div className="flex gap-2 items-center">
+                        <select value={internalSendCurrency} onChange={(e) => { setInternalSendCurrency(e.target.value); if (e.target.value === internalReceiveCurrency) setInternalReceiveCurrency(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); }} className="w-24 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
                           {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                         </select>
                         <input type="number" min="0" step="0.01" placeholder="Amount" value={internalSendAmount} onChange={(e) => setInternalSendAmount(e.target.value)} className="flex-1 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-3 py-2 text-sm text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+                        <span className="text-forest-900/40 text-xs">→</span>
+                        <select value={internalReceiveCurrency} onChange={(e) => { setInternalReceiveCurrency(e.target.value); if (e.target.value === internalSendCurrency) setInternalSendCurrency(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); }} className="w-24 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                          {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
+                        </select>
                       </div>
+                      {internalSendCurrency !== internalReceiveCurrency && (
+                        <p className="text-[11px] text-forest-900/50 px-1">FX conversion: {internalSendCurrency} → {internalReceiveCurrency} (1% spread included)</p>
+                      )}
                       <input type="text" placeholder="Memo (optional)" value={internalSendMemo} onChange={(e) => setInternalSendMemo(e.target.value)} className="w-full min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-3 py-1.5 text-xs text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
                       <button
                         type="button"
@@ -917,9 +936,9 @@ export function Dashboard() {
                         disabled={internalSendLoading || !internalRecipientEmail || !internalSendAmount}
                         className="w-full min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold text-sm hover:bg-forest-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        {internalSendLoading ? 'Sending…' : 'Send'}
+                        {internalSendLoading ? 'Sending…' : `Send ${internalSendCurrency}${internalSendCurrency !== internalReceiveCurrency ? ` → ${internalReceiveCurrency}` : ''}`}
                       </button>
-                      {internalSendResult && <p className={`text-xs p-2 rounded-lg ${internalSendResult.includes('Sent') || internalSendResult.includes('reserved') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>{internalSendResult}</p>}
+                      {internalSendResult && <p className={`text-xs p-2 rounded-lg ${internalSendResult.includes('Sent') || internalSendResult.includes('received') || internalSendResult.includes('reserved') ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>{internalSendResult}</p>}
                     </div>
                   </motion.div>
 
