@@ -5,38 +5,40 @@ Obeam sends welcome emails, money-received notifications, and transfer updates v
 ## Why you didn't receive emails
 
 1. **`RESEND_API_KEY` not set in Railway** — Emails are logged to console only, never sent.
-2. **`EMAIL_FROM` missing or uses an unverified domain** — Resend rejects emails from unverified domains.
-
-## Quick setup (5 min)
-
-### 1. Create a Resend account
-
-Go to [resend.com](https://resend.com) and sign up with the same email you use for Obeam signup (for testing).
-
-### 2. Create an API key
-
-Resend Dashboard → **API Keys** → **Create API Key** → Copy the key (`re_...`).
-
-### 3. Add env vars in Railway
-
-In your **backend** service on Railway → **Variables**:
-
-| Variable        | Value |
-|----------------|-------|
-| `RESEND_API_KEY` | `re_xxxxxxxx` (your key) |
-| `EMAIL_FROM`     | `onboarding@resend.dev` |
-
-**Note:** With `onboarding@resend.dev`, Resend only delivers to the email you signed up with on Resend. So sign up at Resend using the same email you'll test Obeam with (e.g. your Gmail). For production, verify your own domain and use `Obeam <noreply@yourdomain.com>`.
-
-### 4. Redeploy
-
-Redeploy the backend on Railway. Check logs — you should see: `Resend API key configured — emails will be sent via Resend`.
+2. **`onboarding@resend.dev`** — Resend's test sender only delivers to the ONE email you signed up with on Resend. Any other email (e.g. majeed.sulaiman5@gmail.com) will NOT receive emails.
+3. **To send to ANY email** — You must verify your own domain (see below).
 
 ---
 
-## Production (verified domain)
+## Send to ANY email (verified domain)
 
-1. Resend Dashboard → **Domains** → **Add Domain** → Enter your domain
-2. Add the DNS records Resend gives you to your domain provider
-3. Set `EMAIL_FROM=Obeam <noreply@yourdomain.com>` in Railway
-4. Redeploy
+To get welcome emails regardless of which email someone signs up with:
+
+### 1. Add a domain in Resend
+
+Resend Dashboard → **Domains** → **Add domain**
+
+- If you have a domain (e.g. `obeam.com`): use it
+- If you use Vercel: you get `your-app.vercel.app` — add that
+- Or buy a cheap domain (e.g. Namecheap, ~$10/year)
+
+### 2. Add DNS records
+
+Resend will show you TXT, MX, and optional DKIM records. Add them in your domain provider (Vercel, Namecheap, etc.). Verification usually takes a few minutes.
+
+### 3. Set env vars in Railway
+
+| Variable        | Value |
+|----------------|-------|
+| `RESEND_API_KEY` | Your key from Resend |
+| `EMAIL_FROM`     | `Obeam <noreply@yourdomain.com>` or `Obeam <noreply@your-app.vercel.app>` |
+
+### 4. Redeploy
+
+Redeploy the backend. Emails will now be delivered to any address.
+
+---
+
+## Quick test (one email only)
+
+With `EMAIL_FROM=onboarding@resend.dev`, Resend only delivers to the email you signed up with on Resend. Use this only for quick testing.
