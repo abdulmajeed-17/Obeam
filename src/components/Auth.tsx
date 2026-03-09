@@ -17,7 +17,7 @@ export function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
-  const [country, setCountry] = useState('NG');
+  const [country, setCountry] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +38,8 @@ export function Auth() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    if (!email.trim() || !password || !businessName.trim()) {
-      setError('Email, business name, and password are required.');
+    if (!email.trim() || !password || !businessName.trim() || !country) {
+      setError('Business name, country, email, and password are required.');
       return;
     }
     if (password.length < 8) {
@@ -192,19 +192,6 @@ export function Auth() {
 
                     <div>
                       <label className="block text-xs sm:text-sm font-medium text-forest-900 mb-1.5">
-                        Business name
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Your company name"
-                        value={businessName}
-                        onChange={(e) => setBusinessName(e.target.value)}
-                        className="w-full pl-3 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs sm:text-sm font-medium text-forest-900 mb-1.5">
                         Country
                       </label>
                       <div className="relative">
@@ -214,11 +201,25 @@ export function Auth() {
                           onChange={(e) => setCountry(e.target.value)}
                           className="w-full pl-9 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm appearance-none"
                         >
+                          <option value="">Select your country</option>
                           {COUNTRIES.map((c) => (
                             <option key={c.code} value={c.code}>{c.name}</option>
                           ))}
                         </select>
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-forest-900 mb-1.5">
+                        Business name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Your company name"
+                        value={businessName}
+                        onChange={(e) => setBusinessName(e.target.value)}
+                        className="w-full pl-3 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm"
+                      />
                     </div>
 
                     <div>
