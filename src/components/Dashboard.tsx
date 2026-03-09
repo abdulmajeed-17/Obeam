@@ -917,12 +917,12 @@ export function Dashboard() {
                     <div className="space-y-2">
                       <input type="email" placeholder="Recipient email" value={internalRecipientEmail} onChange={(e) => setInternalRecipientEmail(e.target.value)} className="w-full min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-3 py-2 text-sm text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
                       <div className="flex gap-2 items-center">
-                        <select value={internalSendCurrency} onChange={(e) => { setInternalSendCurrency(e.target.value); if (e.target.value === internalReceiveCurrency) setInternalReceiveCurrency(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); }} className="w-24 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                        <select value={internalSendCurrency} onChange={(e) => { setInternalSendCurrency(e.target.value); if (e.target.value === internalReceiveCurrency) setInternalReceiveCurrency(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); }} className="w-24 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                           {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                         </select>
                         <input type="number" min="0" step="0.01" placeholder="Amount" value={internalSendAmount} onChange={(e) => setInternalSendAmount(e.target.value)} className="flex-1 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-3 py-2 text-sm text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
                         <span className="text-forest-900/40 text-xs">→</span>
-                        <select value={internalReceiveCurrency} onChange={(e) => { setInternalReceiveCurrency(e.target.value); if (e.target.value === internalSendCurrency) setInternalSendCurrency(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); }} className="w-24 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                        <select value={internalReceiveCurrency} onChange={(e) => { setInternalReceiveCurrency(e.target.value); if (e.target.value === internalSendCurrency) setInternalSendCurrency(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); }} className="w-24 min-h-[44px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                           {CURRENCY_CODES.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                         </select>
                       </div>
@@ -952,11 +952,11 @@ export function Dashboard() {
                     </div>
                     <p className="text-sm text-forest-900/60 mb-3">Convert between wallets at live rates.</p>
                     <div className="flex gap-2 mb-3">
-                      <select value={convertCardFrom} onChange={(e) => { setConvertCardFrom(e.target.value); if (e.target.value === convertCardTo) setConvertCardTo(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); setConvertCardQuote(null); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                      <select value={convertCardFrom} onChange={(e) => { setConvertCardFrom(e.target.value); if (e.target.value === convertCardTo) setConvertCardTo(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); setConvertCardQuote(null); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                         {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                       </select>
                       <span className="flex items-center text-forest-900/40 text-xs">→</span>
-                      <select value={convertCardTo} onChange={(e) => { setConvertCardTo(e.target.value); if (e.target.value === convertCardFrom) setConvertCardFrom(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); setConvertCardQuote(null); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+                      <select value={convertCardTo} onChange={(e) => { setConvertCardTo(e.target.value); if (e.target.value === convertCardFrom) setConvertCardFrom(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); setConvertCardQuote(null); }} className="flex-1 min-h-[36px] rounded-lg border border-forest-900/15 bg-white/80 px-2 py-1 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                         {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                       </select>
                     </div>
@@ -1033,7 +1033,7 @@ export function Dashboard() {
                     <h2 className="text-base font-semibold text-forest-900 mb-3">Add a new wallet</h2>
                     <p className="text-xs text-forest-900/60 mb-2">Choose a currency below — click to see all options</p>
                     <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-3">
-                      <select value={addCurrencyCode} onChange={(e) => setAddCurrencyCode(e.target.value)} className="w-full sm:flex-1 min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]">
+                      <select value={addCurrencyCode} onChange={(e) => setAddCurrencyCode(e.target.value)} className="w-full sm:flex-1 min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                         {availableCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c} — {CURRENCIES[c]?.name}</option>)}
                       </select>
                       <div className="flex gap-2">
@@ -1052,7 +1052,7 @@ export function Dashboard() {
                 <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 sm:p-6 mb-8">
                   <h2 className="text-lg font-semibold text-forest-900 mb-4">Top up wallet</h2>
                   <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-3">
-                    <select value={topUpCurrency} onChange={(e) => setTopUpCurrency(e.target.value)} className="w-full sm:w-auto min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]">
+                    <select value={topUpCurrency} onChange={(e) => setTopUpCurrency(e.target.value)} className="w-full sm:w-auto min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                       {wallets.map((w) => <option key={w.currency} value={w.currency}>{CURRENCIES[w.currency]?.flag} {w.currency} — {CURRENCIES[w.currency]?.name}</option>)}
                     </select>
                     <input type="number" min="0" step="0.01" placeholder="Amount" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} className="w-full sm:flex-1 min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
@@ -1069,7 +1069,7 @@ export function Dashboard() {
                     <h2 className="text-lg font-semibold text-forest-900 mb-1">Deposit (real money)</h2>
                     <p className="text-xs text-forest-900/50 mb-4">Pay with card or bank transfer via Paystack. Your wallet is credited instantly.</p>
                     <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-3">
-                      <select value={depositCurrency} onChange={(e) => setDepositCurrency(e.target.value)} className="w-full sm:w-auto min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none">
+                      <select value={depositCurrency} onChange={(e) => setDepositCurrency(e.target.value)} className="w-full sm:w-auto min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                         {wallets.map((w) => <option key={w.currency} value={w.currency}>{CURRENCIES[w.currency]?.flag} {w.currency}</option>)}
                       </select>
                       <input type="number" min="0" step="0.01" placeholder="Amount" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="w-full sm:flex-1 min-h-[44px] rounded-xl border border-forest-900/20 bg-white px-4 py-3 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
@@ -1087,11 +1087,11 @@ export function Dashboard() {
                     <p className="text-xs text-forest-900/50 mb-4">Send money from your wallet to a real bank account.</p>
                     <div className="space-y-3">
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <select value={withdrawCurrency} onChange={(e) => { setWithdrawCurrency(e.target.value); fetchBanks(e.target.value); setWithdrawBankCode(''); }} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none">
+                        <select value={withdrawCurrency} onChange={(e) => { setWithdrawCurrency(e.target.value); fetchBanks(e.target.value); setWithdrawBankCode(''); }} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                           <option value="">Select currency</option>
                           {wallets.map((w) => <option key={w.currency} value={w.currency}>{CURRENCIES[w.currency]?.flag} {w.currency}</option>)}
                         </select>
-                        <select value={withdrawBankCode} onChange={(e) => setWithdrawBankCode(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none" disabled={withdrawBanksLoading || withdrawBanks.length === 0}>
+                        <select value={withdrawBankCode} onChange={(e) => setWithdrawBankCode(e.target.value)} className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron" disabled={withdrawBanksLoading || withdrawBanks.length === 0}>
                           <option value="">{withdrawBanksLoading ? 'Loading banks…' : withdrawBanks.length === 0 ? 'Select currency first' : 'Select bank'}</option>
                           {withdrawBanks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
                         </select>
@@ -1320,10 +1320,10 @@ export function Dashboard() {
             <h3 className="text-lg font-semibold text-forest-900 mb-4">Add beneficiary</h3>
             <div className="space-y-3">
               <input type="text" placeholder="Name" value={newBeneficiaryName} onChange={(e) => setNewBeneficiaryName(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
-              <select value={newBeneficiaryCountry} onChange={(e) => setNewBeneficiaryCountry(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+              <select value={newBeneficiaryCountry} onChange={(e) => setNewBeneficiaryCountry(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                 {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name} ({c.code})</option>)}
               </select>
-              <select value={newBeneficiaryPayoutType} onChange={(e) => setNewBeneficiaryPayoutType(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500">
+              <select value={newBeneficiaryPayoutType} onChange={(e) => setNewBeneficiaryPayoutType(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                 <option value="BANK">Bank</option>
                 <option value="MOBILE">Mobile money</option>
               </select>
@@ -1374,11 +1374,11 @@ export function Dashboard() {
             <h3 className="text-lg font-semibold text-forest-900 mb-4">Convert currency</h3>
             <div className="space-y-3">
               <div className="flex gap-2">
-                <select value={convertFrom} onChange={(e) => { setConvertFrom(e.target.value); if (e.target.value === convertTo) setConvertTo(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); setConvertQuote(null); }} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900">
+                <select value={convertFrom} onChange={(e) => { setConvertFrom(e.target.value); if (e.target.value === convertTo) setConvertTo(CURRENCY_CODES.find((c) => c !== e.target.value) || 'GHS'); setConvertQuote(null); }} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 select-chevron">
                   {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                 </select>
                 <span className="flex items-center text-forest-900/60">→</span>
-                <select value={convertTo} onChange={(e) => { setConvertTo(e.target.value); if (e.target.value === convertFrom) setConvertFrom(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); setConvertQuote(null); }} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900">
+                <select value={convertTo} onChange={(e) => { setConvertTo(e.target.value); if (e.target.value === convertFrom) setConvertFrom(existingCurrencies.find((c) => c !== e.target.value) || 'NGN'); setConvertQuote(null); }} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 select-chevron">
                   {existingCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>)}
                 </select>
               </div>

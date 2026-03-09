@@ -137,7 +137,7 @@ export function Admin() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-2 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500"
+                className="min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 py-2 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron"
               >
                 <option value="">All statuses</option>
                 <option value="DRAFT">DRAFT</option>

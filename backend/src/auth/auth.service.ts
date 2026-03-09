@@ -6,6 +6,8 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { InternalTransfersService } from '../internal-transfers/internal-transfers.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { WalletsService } from '../wallets/wallets.service';
+import { getCurrencyForCountry } from '../shared/currencies';
 
 const SALT_ROUNDS = 10;
 
@@ -16,6 +18,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly wallets: WalletsService,
     @Optional() @Inject(InternalTransfersService) private readonly internalTransfers?: InternalTransfersService,
     @Optional() @Inject(NotificationsService) private readonly notifications?: NotificationsService,
   ) {}
@@ -27,7 +30,7 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
-    const country = dto.country ?? 'NG';
+    const country = (dto.country?.trim() || 'NG').toUpperCase();
 
     const result = await this.prisma.$transaction(async (tx) => {
       const business = await tx.business.create({
@@ -49,6 +52,12 @@ export class AuthService {
 
       return { user, business };
     });
+
+    // Create default wallet for the selected country's currency
+    const defaultCurrency = getCurrencyForCountry(country);
+    if (defaultCurrency) {
+      await this.wallets.ensureWallet(result.business.id, defaultCurrency);
+    }
 
     const accessToken = this.jwt.sign({
       sub: result.user.id,

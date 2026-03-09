@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma.service';
+import { WalletsService } from '../wallets/wallets.service';
 import { createMockPrisma, MockPrisma } from '../test/prisma.mock';
 
 jest.mock('bcrypt');
@@ -23,6 +24,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwtService },
+        { provide: WalletsService, useValue: { ensureWallet: jest.fn().mockResolvedValue({ id: 'wallet-1' }) } },
       ],
     }).compile();
 
@@ -30,9 +32,9 @@ describe('AuthService', () => {
   });
 
   describe('signup', () => {
-    const dto = { email: 'test@example.com', password: 'securePass123', businessName: 'Test Corp' };
+    const dto = { email: 'test@example.com', password: 'securePass123', businessName: 'Test Corp', country: 'NG' };
 
-    it('creates user and business (no wallets) and returns JWT', async () => {
+    it('creates user and business with default wallet for country and returns JWT', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       (bcryptMock.hash as jest.Mock).mockResolvedValue('hashed-password');
 
@@ -60,6 +62,37 @@ describe('AuthService', () => {
     it('throws ConflictException if email already exists', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'existing', email: dto.email });
       await expect(service.signup(dto)).rejects.toThrow(ConflictException);
+    });
+
+    it('creates default wallet for country when no country provided (defaults to NG)', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      (bcryptMock.hash as jest.Mock).mockResolvedValue('hashed-password');
+
+      const mockBusiness = { id: 'biz-1', name: 'Test Corp', country: 'NG', status: 'PENDING' };
+      const mockUser = { id: 'user-1', email: 'test@example.com', businessId: 'biz-1' };
+
+      prisma.$transaction.mockImplementation(async (fn: any) => {
+        const tx = {
+          business: { create: jest.fn().mockResolvedValue(mockBusiness) },
+          user: { create: jest.fn().mockResolvedValue(mockUser) },
+        };
+        return fn(tx);
+      });
+
+      const walletsService = { ensureWallet: jest.fn().mockResolvedValue({ id: 'wallet-1' }) };
+      const module = await Test.createTestingModule({
+        providers: [
+          AuthService,
+          { provide: PrismaService, useValue: prisma },
+          { provide: JwtService, useValue: jwtService },
+          { provide: WalletsService, useValue: walletsService },
+        ],
+      }).compile();
+      const service = module.get<AuthService>(AuthService);
+
+      await service.signup({ ...dto, country: undefined });
+
+      expect(walletsService.ensureWallet).toHaveBeenCalledWith('biz-1', 'NGN');
     });
   });
 

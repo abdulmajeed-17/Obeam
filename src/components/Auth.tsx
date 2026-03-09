@@ -42,7 +42,7 @@ export function Auth() {
     setError(null);
     setSuccess(null);
     if (!email.trim() || !password || !businessName.trim() || !country) {
-      setError('Business name, country, email, and password are required.');
+      setError('Please select your country, enter business name, email, and password.');
       return;
     }
     if (password.length < 8) {
@@ -202,11 +202,11 @@ export function Auth() {
                         Country
                       </label>
                       <div className="relative">
-                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                         <select
                           value={country}
                           onChange={(e) => setCountry(e.target.value)}
-                          className="w-full pl-9 pr-3 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm appearance-none"
+                          className="w-full pl-9 py-3 sm:py-3.5 rounded-lg bg-white border border-gray-200 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all text-sm select-chevron"
                         >
                           <option value="">Select your country</option>
                           {COUNTRIES.map((c) => (

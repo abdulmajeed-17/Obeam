@@ -12,13 +12,13 @@ export class NotificationsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {
-    this.fromEmail = this.config.get<string>('EMAIL_FROM') || 'Obeam <noreply@obeam.com>';
+    this.fromEmail = this.config.get<string>('EMAIL_FROM') || 'onboarding@resend.dev';
     this.resendApiKey = this.config.get<string>('RESEND_API_KEY');
 
     if (this.resendApiKey) {
       this.logger.log('Resend API key configured — emails will be sent via Resend');
     } else {
-      this.logger.warn('RESEND_API_KEY not set — emails will be logged to console only');
+      this.logger.warn('RESEND_API_KEY not set in Railway — welcome emails will NOT be sent. See docs/EMAIL-SETUP.md');
     }
   }
 
