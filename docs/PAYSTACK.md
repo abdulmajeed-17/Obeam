@@ -54,4 +54,18 @@ Paystack powers **deposits** (add money to your wallet) and **withdrawals** (sen
 
 ## Test mode
 
-Use **test keys** (`sk_test_...`, `pk_test_...`) for development. Paystack provides test card numbers (e.g. `5060 6666 6666 6666`) — no real money is charged.
+Use **test keys** (`sk_test_...`, `pk_test_...`) for development. Paystack requires **test card numbers** — real cards are declined in test mode.
+
+### Test card (successful payment)
+
+| Field   | Value              |
+|--------|--------------------|
+| Card   | `4084 0840 8408 4081` |
+| Expiry | Any future date (e.g. `02/27`) |
+| CVV    | `408`              |
+| PIN    | `0000` (if asked)  |
+| OTP    | `123456` (if asked)|
+
+**Alternative (with PIN):** `5078 5078 5078 5078 12` — Expiry: 02/27, CVV: 081, PIN: 1111
+
+No real money is charged. See [Paystack Test Payments](https://docs.paystack.co/payments/test-payments) for more.

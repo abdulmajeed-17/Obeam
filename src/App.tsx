@@ -21,6 +21,17 @@ export function App() {
 
   useEffect(() => {
     const path = window.location.pathname;
+    const params = new URLSearchParams(window.location.search);
+    const depositRef = params.get('reference');
+    const depositSuccess = params.get('deposit') === 'success';
+
+    // Paystack redirect: land on /dashboard to verify and credit
+    if (depositSuccess && depositRef && localStorage.getItem('obeam_token')) {
+      window.history.replaceState({}, '', `/dashboard?deposit=success&reference=${depositRef}`);
+      setCurrentPage('dashboard');
+      return;
+    }
+
     if (path === '/about') setCurrentPage('about');
     else if (path === '/dashboard') setCurrentPage('dashboard');
     else if (path === '/admin') setCurrentPage('admin');

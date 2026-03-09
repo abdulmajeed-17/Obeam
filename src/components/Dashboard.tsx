@@ -138,6 +138,35 @@ export function Dashboard() {
   const [withdrawBanks, setWithdrawBanks] = useState<{ name: string; code: string }[]>([]);
   const [withdrawBanksLoading, setWithdrawBanksLoading] = useState(false);
 
+  // Verify Paystack deposit when returning with reference (webhook backup)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('reference');
+    if (!ref || params.get('deposit') !== 'success') return;
+
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/paystack/verify?reference=${encodeURIComponent(ref)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.credited) {
+          setDepositMessage(`Deposit credited: ${data.currency} ${data.amount?.toLocaleString()}`);
+          setRefetchKey((k) => k + 1);
+        } else if (data.status === 'success' && !data.credited) {
+          setDepositMessage('Deposit already credited.');
+          setRefetchKey((k) => k + 1);
+        }
+      } catch {
+        setDepositMessage('Could not verify deposit. Refresh the page or check your wallet.');
+      }
+      window.history.replaceState({}, '', '/dashboard');
+    })();
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem('obeam_token');
     if (!token) {
@@ -1071,7 +1100,7 @@ export function Dashboard() {
                 {wallets.length > 0 && (
                   <div className="bg-white/90 backdrop-blur rounded-2xl border border-emerald-500/20 shadow-lg shadow-forest-900/5 p-4 sm:p-6 mb-4">
                     <h2 className="text-lg font-semibold text-forest-900 mb-1">Deposit (real money)</h2>
-                    <p className="text-xs text-forest-900/50 mb-4">Pay with card or bank transfer via Paystack. Your wallet is credited instantly. Use your Paystack account&apos;s currency (e.g. NGN for Nigeria).</p>
+                    <p className="text-xs text-forest-900/50 mb-4">Pay with card or bank transfer via Paystack. Your wallet is credited instantly. Use your Paystack account&apos;s currency (e.g. NGN for Nigeria). Test mode? Use card <code className="bg-forest-900/10 px-1 rounded">4084 0840 8408 4081</code>, expiry 02/27, CVV 408.</p>
                     <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-3">
                       <select value={depositCurrency} onChange={(e) => setDepositCurrency(e.target.value)} className="w-full sm:w-auto min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                         {wallets.map((w) => <option key={w.currency} value={w.currency}>{CURRENCIES[w.currency]?.flag} {w.currency}</option>)}
@@ -1082,6 +1111,7 @@ export function Dashboard() {
                       </button>
                     </div>
                     {depositMessage && <p className={`mt-3 text-sm ${depositMessage.includes('opened') || depositMessage.includes('credited') ? 'text-emerald-700 font-medium' : 'text-red-600'}`}>{depositMessage}</p>}
+                    <p className="mt-2 text-xs text-forest-900/40">After paying, you&apos;ll be redirected back and your wallet credited. If you don&apos;t see it, refresh the page.</p>
                   </div>
                 )}
 
