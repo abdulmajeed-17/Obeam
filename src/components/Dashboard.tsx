@@ -1031,8 +1031,9 @@ export function Dashboard() {
                 {addCurrencyOpen && availableCurrencies.length > 0 && (
                   <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-4 sm:p-5 mb-6">
                     <h2 className="text-base font-semibold text-forest-900 mb-3">Add a new wallet</h2>
+                    <p className="text-xs text-forest-900/60 mb-2">Choose a currency below — click to see all options</p>
                     <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-3">
-                      <select value={addCurrencyCode} onChange={(e) => setAddCurrencyCode(e.target.value)} className="w-full sm:flex-1 min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none">
+                      <select value={addCurrencyCode} onChange={(e) => setAddCurrencyCode(e.target.value)} className="w-full sm:flex-1 min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 pr-10 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 appearance-none bg-[length:14px_14px] bg-[right_0.75rem_center] bg-no-repeat [background-image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke%3D%22%230A291B%22%20stroke-width%3D%222%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22m19%209-7%207-7-7%22%2F%3E%3C%2Fsvg%3E')]">
                         {availableCurrencies.map((c) => <option key={c} value={c}>{CURRENCIES[c]?.flag} {c} — {CURRENCIES[c]?.name}</option>)}
                       </select>
                       <div className="flex gap-2">
