@@ -17,6 +17,9 @@ export class NotificationsService {
 
     if (this.resendApiKey) {
       this.logger.log('Resend API key configured — emails will be sent via Resend');
+      if (this.fromEmail.includes('onboarding@resend.dev')) {
+        this.logger.warn('EMAIL_FROM=onboarding@resend.dev — Resend only delivers to YOUR Resend signup email. Other addresses will NOT receive emails. Add a verified domain to send to any email.');
+      }
     } else {
       this.logger.warn('RESEND_API_KEY not set in Railway — welcome emails will NOT be sent. See docs/EMAIL-SETUP.md');
     }

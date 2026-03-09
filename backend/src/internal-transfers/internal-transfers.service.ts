@@ -304,7 +304,7 @@ export class InternalTransfersService {
       sendAmount: Number(sendAmountMinor) / 100,
       receiveAmount: Number(receiveAmountMinor) / 100,
       recipientEmail, rate: rateUsed, fee: Number(feeAmount) / 100, fxBreakdown,
-      message: `${recipientEmail} doesn't have an Obeam account yet. ${recvMeta.symbol}${(Number(receiveAmountMinor) / 100).toLocaleString()} ${receiveCurrency} has been reserved. They'll receive it when they sign up.`,
+      message: `${recipientEmail} doesn't have an Obeam account yet. ${recvMeta.symbol}${(Number(receiveAmountMinor) / 100).toLocaleString()} ${receiveCurrency} has been reserved. We've sent them an email to sign up and claim. If they don't get it, verify your domain at resend.com — the test sender only delivers to one email.`,
     };
   }
 
