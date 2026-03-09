@@ -564,7 +564,11 @@ export function Dashboard() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = Array.isArray(data.message) ? data.message[0] : data.message;
-        setDepositMessage(msg || 'Could not start deposit.');
+        let displayMsg = msg || 'Could not start deposit.';
+        if (displayMsg.toLowerCase().includes('currency not supported')) {
+          displayMsg = `${displayMsg} Paystack supports one currency per account country (e.g. NGN for Nigeria). Try your country's currency, or enable multi-currency in Paystack Dashboard.`;
+        }
+        setDepositMessage(displayMsg);
         return;
       }
       window.open(data.authorization_url, '_blank');
@@ -1067,7 +1071,7 @@ export function Dashboard() {
                 {wallets.length > 0 && (
                   <div className="bg-white/90 backdrop-blur rounded-2xl border border-emerald-500/20 shadow-lg shadow-forest-900/5 p-4 sm:p-6 mb-4">
                     <h2 className="text-lg font-semibold text-forest-900 mb-1">Deposit (real money)</h2>
-                    <p className="text-xs text-forest-900/50 mb-4">Pay with card or bank transfer via Paystack. Your wallet is credited instantly.</p>
+                    <p className="text-xs text-forest-900/50 mb-4">Pay with card or bank transfer via Paystack. Your wallet is credited instantly. Use your Paystack account&apos;s currency (e.g. NGN for Nigeria).</p>
                     <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-3">
                       <select value={depositCurrency} onChange={(e) => setDepositCurrency(e.target.value)} className="w-full sm:w-auto min-h-[44px] rounded-xl border border-forest-900/20 bg-white pl-4 py-3 text-forest-900 font-medium focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
                         {wallets.map((w) => <option key={w.currency} value={w.currency}>{CURRENCIES[w.currency]?.flag} {w.currency}</option>)}
