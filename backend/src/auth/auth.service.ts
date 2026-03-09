@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { InternalTransfersService } from '../internal-transfers/internal-transfers.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const SALT_ROUNDS = 10;
 
@@ -16,6 +17,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     @Optional() @Inject(InternalTransfersService) private readonly internalTransfers?: InternalTransfersService,
+    @Optional() @Inject(NotificationsService) private readonly notifications?: NotificationsService,
   ) {}
 
   async signup(dto: SignupDto) {
@@ -64,6 +66,12 @@ export class AuthService {
       } catch (err) {
         this.logger.error(`Failed to claim pending transfers for ${dto.email}`, err);
       }
+    }
+
+    if (this.notifications) {
+      this.notifications.sendWelcomeEmail({ to: dto.email, businessName: result.business.name }).catch((err) => {
+        this.logger.warn(`Failed to send welcome email to ${dto.email}`);
+      });
     }
 
     return {

@@ -80,6 +80,16 @@ export class NotificationsService {
     await this.sendEmail({ to: email, subject, html });
   }
 
+  async sendWelcomeEmail(params: { to: string; businessName: string }): Promise<void> {
+    const { to, businessName } = params;
+    const frontendUrl = this.config.get<string>('CORS_ORIGIN') || 'https://obeam.vercel.app';
+
+    const subject = 'Welcome to Obeam — Your account is ready';
+    const html = `<!DOCTYPE html><html><head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}.container{max-width:600px;margin:0 auto;padding:20px}.header{background:#0A291B;color:white;padding:24px;text-align:center;border-radius:12px 12px 0 0}.content{padding:28px;background:#FFFBF5;border:1px solid #E8E0D0;border-top:none;border-radius:0 0 12px 12px}.cta{display:inline-block;background:#0A291B;color:white;padding:14px 28px;text-decoration:none;border-radius:10px;font-weight:bold;margin-top:16px}.footer{text-align:center;padding:20px;font-size:12px;color:#999}</style></head><body><div class="container"><div class="header"><h1 style="margin:0;font-size:24px;">Obeam</h1></div><div class="content"><h2 style="margin-top:0;">Thanks for creating your account</h2><p>Hi${businessName ? ` ${businessName}` : ''},</p><p>Your Obeam account is ready. You can now:</p><ul><li>Add multi-currency wallets (NGN, GHS, KES, ZAR, and more)</li><li>Send money to anyone by email — instant if they're on Obeam</li><li>Convert between currencies at live rates</li><li>Withdraw to your bank account</li></ul><p><a href="${frontendUrl}" class="cta">Go to Dashboard</a></p><p style="margin-top:24px;color:#666;font-size:14px;">Questions? Reply to this email — we're here to help.</p></div><div class="footer"><p>Obeam — Cross-border payments for African businesses</p></div></div></body></html>`;
+
+    await this.sendEmail({ to, subject, html });
+  }
+
   async notifyMoneySent(params: {
     recipientEmail: string;
     senderName: string;
