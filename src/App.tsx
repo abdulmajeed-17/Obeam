@@ -14,6 +14,7 @@ import { AboutUs } from './components/AboutUs';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { Admin } from './components/Admin';
+import { PayInvoice } from './components/PayInvoice';
 import ErrorBoundary from './components/ErrorBoundary';
 
 export function App() {
@@ -35,6 +36,7 @@ export function App() {
     if (path === '/about') setCurrentPage('about');
     else if (path === '/dashboard') setCurrentPage('dashboard');
     else if (path === '/admin') setCurrentPage('admin');
+    else if (path.startsWith('/pay/')) setCurrentPage('pay');
     else if (path === '/signup' || path === '/login') setCurrentPage(path.slice(1));
     else setCurrentPage('home');
 
@@ -48,6 +50,7 @@ export function App() {
       if (path === '/about') setCurrentPage('about');
       else if (path === '/dashboard') setCurrentPage('dashboard');
       else if (path === '/admin') setCurrentPage('admin');
+      else if (path.startsWith('/pay/')) setCurrentPage('pay');
       else if (path === '/signup' || path === '/login') setCurrentPage(path.slice(1));
       else setCurrentPage('home');
     };
@@ -90,6 +93,12 @@ export function App() {
         e.preventDefault();
         window.history.pushState({}, '', '/admin');
         setCurrentPage('admin');
+        return;
+      }
+      if (href.startsWith('/pay/')) {
+        e.preventDefault();
+        window.history.pushState({}, '', href);
+        setCurrentPage('pay');
         return;
       }
       if (href === '/' || href === '') {
@@ -137,6 +146,8 @@ export function App() {
         </motion.div>
       ) : currentPage === 'admin' ? (
         <Admin />
+      ) : currentPage === 'pay' ? (
+        <PayInvoice />
       ) : (
         <motion.div
           key="home"

@@ -137,6 +137,16 @@ export function Dashboard() {
   const [withdrawMessage, setWithdrawMessage] = useState<string | null>(null);
   const [withdrawBanks, setWithdrawBanks] = useState<{ name: string; code: string }[]>([]);
   const [withdrawBanksLoading, setWithdrawBanksLoading] = useState(false);
+  const [invoices, setInvoices] = useState<{ id: string; invoiceNumber: string; currency: string; amount: string; description: string | null; dueDate: string | null; status: string; paidAt: string | null; counterparty?: { name: string; country: string }; createdAt: string }[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
+  const [newInvoiceCounterpartyId, setNewInvoiceCounterpartyId] = useState('');
+  const [newInvoiceCurrency, setNewInvoiceCurrency] = useState('NGN');
+  const [newInvoiceAmount, setNewInvoiceAmount] = useState('');
+  const [newInvoiceDescription, setNewInvoiceDescription] = useState('');
+  const [newInvoiceDueDate, setNewInvoiceDueDate] = useState('');
+  const [createInvoiceLoading, setCreateInvoiceLoading] = useState(false);
+  const [createInvoiceError, setCreateInvoiceError] = useState<string | null>(null);
 
   // Verify Paystack deposit when returning with reference (webhook backup)
   useEffect(() => {
@@ -305,6 +315,18 @@ export function Dashboard() {
   }, [section, refetchKey, business?.id]);
 
   useEffect(() => {
+    if (section !== 'invoices') return;
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    setInvoicesLoading(true);
+    fetch(`${API_BASE}/invoices`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : { invoices: [] }))
+      .then((data) => setInvoices(data.invoices || []))
+      .catch(() => setInvoices([]))
+      .finally(() => setInvoicesLoading(false));
+  }, [section, refetchKey]);
+
+  useEffect(() => {
     if (!selectedTransferId) { setTransferDetail(null); return; }
     const token = localStorage.getItem('obeam_token');
     if (!token) return;
@@ -334,6 +356,83 @@ export function Dashboard() {
   };
 
   const refetchWallets = () => setRefetchKey((k) => k + 1);
+
+  const handleCreateInvoice = async () => {
+    if (!newInvoiceCounterpartyId || !newInvoiceAmount) {
+      setCreateInvoiceError('Select a client and enter amount.');
+      return;
+    }
+    const amountMajor = parseFloat(newInvoiceAmount);
+    if (!Number.isFinite(amountMajor) || amountMajor <= 0) {
+      setCreateInvoiceError('Enter a valid amount.');
+      return;
+    }
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    setCreateInvoiceError(null);
+    setCreateInvoiceLoading(true);
+    try {
+      const amountMinor = Math.round(amountMajor * 100).toString();
+      const res = await fetch(`${API_BASE}/invoices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          counterpartyId: newInvoiceCounterpartyId,
+          currency: newInvoiceCurrency,
+          amount: amountMinor,
+          description: newInvoiceDescription.trim() || undefined,
+          dueDate: newInvoiceDueDate || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCreateInvoiceError(data.message || 'Failed to create invoice.');
+        return;
+      }
+      setCreateInvoiceOpen(false);
+      setNewInvoiceCounterpartyId('');
+      setNewInvoiceAmount('');
+      setNewInvoiceDescription('');
+      setNewInvoiceDueDate('');
+      setRefetchKey((k) => k + 1);
+    } finally {
+      setCreateInvoiceLoading(false);
+    }
+  };
+
+  const handleSendInvoice = async (id: string) => {
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${id}/send`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      setRefetchKey((k) => k + 1);
+    } catch { /* ignore */ }
+  };
+
+  const handleMarkPaidInvoice = async (id: string) => {
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${id}/mark-paid`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) return;
+      setRefetchKey((k) => k + 1);
+    } catch { /* ignore */ }
+  };
+
+  const handleCancelInvoice = async (id: string) => {
+    const token = localStorage.getItem('obeam_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${id}/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return;
+      setRefetchKey((k) => k + 1);
+    } catch { /* ignore */ }
+  };
 
   const handleAddBeneficiary = async () => {
     const name = newBeneficiaryName.trim();
@@ -1319,33 +1418,131 @@ export function Dashboard() {
 
             {section === 'invoices' && (
               <motion.div key="invoices" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }} className="max-w-5xl">
-                <p className="text-forest-900/70 mb-6 text-[15px]">Create and manage invoices for your business.</p>
-                <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 p-5">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-6">
+                  <p className="text-forest-900/70 text-[15px]">Create and manage invoices for your business.</p>
+                  <button
+                    type="button"
+                    onClick={() => { setCreateInvoiceOpen(true); setNewInvoiceCurrency(depositCurrency || 'NGN'); setCreateInvoiceError(null); }}
+                    disabled={counterparties.length === 0}
+                    className="min-h-[44px] px-4 rounded-xl bg-forest-900 text-white font-semibold text-sm hover:bg-forest-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    <FileText size={18} />
+                    Create invoice
+                  </button>
+                </div>
+                {counterparties.length === 0 && (
+                  <p className="text-sm text-forest-900/60 mb-4">Add a beneficiary in Transfers first — invoices are sent to your saved clients.</p>
+                )}
+                <div className="bg-white/90 backdrop-blur rounded-2xl border border-forest-900/8 shadow-lg shadow-forest-900/5 overflow-hidden">
+                  <div className="p-4 border-b border-forest-900/5 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-forest-900">Invoices</h2>
-                    <span className="text-xs text-forest-900/50 bg-forest-900/5 px-3 py-1 rounded-full">Coming soon</span>
                   </div>
-                  <p className="text-sm text-forest-900/60">Create invoices, send payment links, and track when your clients pay. Invoice management is ready in the API — UI launching soon.</p>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl bg-forest-900/5 border border-forest-900/8 p-4">
-                      <p className="text-sm font-medium text-forest-900">Create invoices</p>
-                      <p className="text-xs text-forest-900/50 mt-1">Generate professional invoices in any currency</p>
+                  {invoicesLoading ? (
+                    <p className="p-6 text-forest-900/60 text-sm">Loading…</p>
+                  ) : invoices.length === 0 ? (
+                    <p className="p-6 text-forest-900/60 text-sm">No invoices yet. Create one to get started.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="border-b border-forest-900/10 bg-forest-900/5">
+                            <th className="px-4 py-3 text-xs font-semibold text-forest-900/70">Invoice #</th>
+                            <th className="px-4 py-3 text-xs font-semibold text-forest-900/70">Client</th>
+                            <th className="px-4 py-3 text-xs font-semibold text-forest-900/70">Amount</th>
+                            <th className="px-4 py-3 text-xs font-semibold text-forest-900/70">Status</th>
+                            <th className="px-4 py-3 text-xs font-semibold text-forest-900/70">Due</th>
+                            <th className="px-4 py-3 text-xs font-semibold text-forest-900/70">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {invoices.map((inv) => (
+                            <tr key={inv.id} className="border-b border-forest-900/5 hover:bg-forest-900/5">
+                              <td className="px-4 py-3 text-sm font-medium text-forest-900">{inv.invoiceNumber}</td>
+                              <td className="px-4 py-3 text-sm text-forest-900/80">{inv.counterparty?.name ?? '—'}</td>
+                              <td className="px-4 py-3 text-sm font-medium text-forest-900">{getCurrencySymbol(inv.currency)}{(Number(inv.amount) / 100).toLocaleString()} {inv.currency}</td>
+                              <td className="px-4 py-3">
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                  inv.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
+                                  inv.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                                  inv.status === 'DRAFT' ? 'bg-gray-100 text-gray-700' :
+                                  inv.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                                  'bg-forest-900/10 text-forest-900/70'
+                                }`}>{inv.status}</span>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-forest-900/70">{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : '—'}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {inv.status === 'DRAFT' && (
+                                    <>
+                                      <button type="button" onClick={() => handleSendInvoice(inv.id)} className="text-xs font-medium text-blue-600 hover:text-blue-700">Send</button>
+                                      <button type="button" onClick={() => handleCancelInvoice(inv.id)} className="text-xs font-medium text-red-600 hover:text-red-700">Cancel</button>
+                                    </>
+                                  )}
+                                  {inv.status === 'SENT' && (
+                                    <button type="button" onClick={() => handleMarkPaidInvoice(inv.id)} className="text-xs font-medium text-emerald-600 hover:text-emerald-700">Mark paid</button>
+                                  )}
+                                  <button type="button" onClick={() => { const url = `${window.location.origin}/pay/${inv.invoiceNumber}`; navigator.clipboard?.writeText(url); }} className="text-xs font-medium text-forest-900/70 hover:text-forest-900">Copy link</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <div className="rounded-xl bg-forest-900/5 border border-forest-900/8 p-4">
-                      <p className="text-sm font-medium text-forest-900">Payment links</p>
-                      <p className="text-xs text-forest-900/50 mt-1">Share links that let clients pay directly</p>
-                    </div>
-                    <div className="rounded-xl bg-forest-900/5 border border-forest-900/8 p-4">
-                      <p className="text-sm font-medium text-forest-900">Track payments</p>
-                      <p className="text-xs text-forest-900/50 mt-1">See when invoices are viewed and paid</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Create invoice modal */}
+      {createInvoiceOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => !createInvoiceLoading && setCreateInvoiceOpen(false)}>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-cream-50 rounded-2xl border border-forest-900/10 shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-forest-900 mb-4">Create invoice</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-forest-900 mb-1">Client</label>
+                <select value={newInvoiceCounterpartyId} onChange={(e) => setNewInvoiceCounterpartyId(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
+                  <option value="">Select client</option>
+                  {counterparties.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.country})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-forest-900 mb-1">Currency</label>
+                  <select value={newInvoiceCurrency} onChange={(e) => setNewInvoiceCurrency(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500 select-chevron">
+                    {CURRENCY_CODES.map((c) => (
+                      <option key={c} value={c}>{CURRENCIES[c]?.flag} {c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-forest-900 mb-1">Amount</label>
+                  <input type="number" min="0" step="0.01" placeholder="0.00" value={newInvoiceAmount} onChange={(e) => setNewInvoiceAmount(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-forest-900 mb-1">Description (optional)</label>
+                <input type="text" placeholder="e.g. Consulting services" value={newInvoiceDescription} onChange={(e) => setNewInvoiceDescription(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 placeholder:text-forest-900/50 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-forest-900 mb-1">Due date (optional)</label>
+                <input type="date" value={newInvoiceDueDate} onChange={(e) => setNewInvoiceDueDate(e.target.value)} className="w-full min-h-[44px] rounded-xl border border-forest-900/20 px-4 py-2 text-forest-900 focus:outline-none focus:ring-2 focus:ring-gold-500" />
+              </div>
+            </div>
+            {createInvoiceError && <p className="mt-2 text-sm text-red-600">{createInvoiceError}</p>}
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={() => !createInvoiceLoading && setCreateInvoiceOpen(false)} className="flex-1 min-h-[44px] rounded-xl border border-forest-900/20 text-forest-900 font-medium">Cancel</button>
+              <button type="button" onClick={handleCreateInvoice} disabled={createInvoiceLoading} className="flex-1 min-h-[44px] rounded-xl bg-forest-900 text-white font-semibold disabled:opacity-60">{createInvoiceLoading ? 'Creating…' : 'Create'}</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Add beneficiary modal */}
       {addBeneficiaryOpen && (
