@@ -5,7 +5,7 @@ const faqs = [
 {
   question: 'How long does a transfer take?',
   answer:
-  "Transfers are typically settled within 24 hours from the moment we receive your Naira payment. In many cases, it's even faster (same-day) depending on when you initiate the transaction."
+  "Transfers are typically settled within 24 hours from the moment we receive your payment. In many cases, it's even faster (same-day) depending on when you initiate the transaction."
 },
 {
   question: 'What exchange rate do you use?',
@@ -20,7 +20,7 @@ const faqs = [
 {
   question: 'What is the minimum transfer amount?',
   answer:
-  'You can send as little as ₦10,000. There is no maximum limit for verified business accounts, making it perfect for both small payments and large supplier settlements.'
+  'Minimum amounts vary by currency (e.g. ₦10,000 for Naira). There is no maximum limit for verified business accounts, making it perfect for both small payments and large supplier settlements.'
 }];
 
 export function FAQ() {
@@ -47,7 +47,7 @@ export function FAQ() {
             Questions? <span className="text-gold-500">We've got answers.</span>
           </h2>
           <p className="text-base sm:text-lg md:text-xl text-gray-600">
-            Everything you need to know about sending money to Ghana.
+            Everything you need to know about sending money across Africa.
           </p>
         </motion.div>
 

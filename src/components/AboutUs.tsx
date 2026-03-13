@@ -24,7 +24,7 @@ export function AboutUs() {
     {
       icon: MapPin,
       title: 'Focus',
-      description: 'One corridor, done right. Ghana–Nigeria first, then we expand.'
+      description: 'Pan-African corridors. Nigeria, Ghana, Kenya, South Africa—and expanding.'
     }
   ];
 
@@ -66,7 +66,7 @@ export function AboutUs() {
         className="leading-relaxed"
         style={{ fontSize: 18, color: '#4B5563' }}
       >
-        We’re solving cross-border payments one corridor at a time. Starting with Ghana–Nigeria.
+        We’re solving cross-border payments across Africa—Nigeria, Ghana, Kenya, South Africa, and beyond.
       </p>
     </motion.div>
   </div>
@@ -94,7 +94,7 @@ export function AboutUs() {
                     We started Obeam to fix this. Not with hype, but with infrastructure. Real compliance. Real settlement rails. Real transparency.
                   </p>
                   <p>
-                    We're focusing on the Ghana–Nigeria corridor first—one of West Africa's most active trade routes. Once we've solved it deeply, we'll expand.
+                    We're building rails for Nigeria, Ghana, Kenya, South Africa, and beyond. Multi-currency wallets, live FX, and instant transfers—so African businesses can trade without friction.
                   </p>
                 </div>
               </motion.div>

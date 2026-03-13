@@ -120,13 +120,13 @@ export function HowItWorks() {
                 {
                   step: '2',
                   title: 'We convert instantly',
-                  description: 'We convert your Naira to Cedis at the best mid-market rate available in seconds.',
+                  description: 'We convert your funds to the recipient\'s currency at live mid-market rates—NGN, GHS, KES, ZAR, XOF, and more.',
                   color: 'from-gold-500 to-gold-600'
                 },
                 {
                   step: '3',
                   title: 'Supplier gets paid',
-                  description: 'Your supplier receives Cedis directly in their bank account or mobile money wallet.',
+                  description: 'Your supplier receives funds directly in their bank account or mobile money wallet—anywhere in Africa.',
                   color: 'from-green-500 to-green-600'
                 }
               ].map((item, index) => (

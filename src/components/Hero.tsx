@@ -85,7 +85,7 @@ export function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-gold-500"></span>
               </span>
-              New: Instant settlements to Ghana
+              New: Instant settlements across Africa
             </motion.div>
           </div>
 
@@ -97,7 +97,7 @@ export function Hero() {
                 className="block font-extrabold text-[clamp(28px,7vw,64px)] sm:text-[clamp(36px,5.5vw,64px)] lg:text-[clamp(42px,5vw,64px)]"
                 style={{ color: '#0E2F1C' }}
               >
-                Pay Ghana suppliers in 24 hours.
+                Pay suppliers across Africa in 24 hours.
               </motion.span>
               <motion.span
                 initial={{ opacity: 0, y: 20 }}
@@ -117,7 +117,7 @@ export function Hero() {
               className="text-base sm:text-lg mb-2 sm:mb-3 max-w-[520px] mx-auto xl:mx-0 leading-relaxed font-medium"
               style={{ color: '#4B5563' }}
             >
-              Move money to Ghana — without delays.
+              Move money across Africa — without delays.
             </motion.p>
             <motion.p
               initial={{ opacity: 0 }}

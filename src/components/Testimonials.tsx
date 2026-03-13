@@ -14,7 +14,7 @@ const testimonials = [
 {
   id: 2,
   content:
-  'The rates are unbeatable and the transparency is refreshing. I know exactly what my suppliers in Accra will receive down to the last Cedi.',
+  'The rates are unbeatable and the transparency is refreshing. I know exactly what my suppliers will receive—whether they\'re in Accra, Nairobi, or Lagos.',
   author: 'Sarah Mensah',
   role: 'Procurement Director',
   company: 'WestAfrica Trade',

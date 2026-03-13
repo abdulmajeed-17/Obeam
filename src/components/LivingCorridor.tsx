@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 /**
  * Living Corridor — One clear arc, one traveling dot.
- * Headline (Ghana) → arc → Send Money card. No labels, no FX on path, no clutter.
+ * Headline (Africa) → arc → Send Money card. No labels, no FX on path, no clutter.
  */
 const CORRIDOR_PATH = 'M 80 55 C 180 15, 220 15, 320 75 C 360 105, 360 145, 320 165';
 const DOT_DURATION_MS = 14000;

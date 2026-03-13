@@ -30,7 +30,7 @@ export function Footer() {
       title: 'Company',
       links: [
         { name: 'About Us', href: '/about' },
-        { name: 'Why Ghana–Nigeria', href: '#' },
+        { name: 'Our Corridors', href: '#' },
         { name: 'Blog', href: '#' },
         { name: 'Careers', href: '#' },
         { name: 'Press', href: '#' }
@@ -83,7 +83,7 @@ export function Footer() {
               cross-border payments?
             </h2>
             <p className="text-forest-900/80 text-base sm:text-lg mb-6 sm:mb-8 max-w-2xl mx-auto font-medium">
-              Join thousands of businesses sending money to Ghana faster,
+              Join thousands of businesses sending money across Africa faster,
               cheaper, and safer.
             </p>
             <motion.a
@@ -112,7 +112,7 @@ export function Footer() {
                 </span>
               </a>
               <p className="text-gray-400 mb-3 leading-relaxed text-sm">
-                Infrastructure for compliant Ghana–Nigeria business payments.
+                Infrastructure for compliant pan-African business payments.
               </p>
               <p className="text-gray-500 mb-6 leading-relaxed text-xs">
                 Powering secure, transparent cross-border settlement for African SMEs.
@@ -171,7 +171,7 @@ export function Footer() {
                 </span>
               </a>
               <p className="text-gray-400 mb-2 leading-relaxed text-sm">
-                Infrastructure for compliant Ghana–Nigeria business payments.
+                Infrastructure for compliant pan-African business payments.
               </p>
               <p className="text-gray-500 mb-4 leading-relaxed text-xs">
                 Powering secure, transparent cross-border settlement for African SMEs.
