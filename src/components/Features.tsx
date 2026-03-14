@@ -63,7 +63,7 @@ export function Features() {
               </p>
 
               <a
-                href="#"
+                href="/signup"
                 className={`inline-flex items-center text-forest-900 font-semibold hover:text-gold-600 transition-colors group/link`}
               >
                 {feature.linkText}

@@ -30,7 +30,7 @@ export function Footer() {
       title: 'Company',
       links: [
         { name: 'About Us', href: '/about' },
-        { name: 'Our Corridors', href: '#' },
+        { name: 'Our Corridors', href: '/about' },
         { name: 'Blog', href: '#' },
         { name: 'Careers', href: '#' },
         { name: 'Press', href: '#' }
@@ -108,7 +108,7 @@ export function Footer() {
                   <div className="w-3 h-5 bg-forest-950 rounded-full" />
                 </div>
                 <span className="text-2xl font-extrabold text-white tracking-tight">
-                  beam
+                  Obeam
                 </span>
               </a>
               <p className="text-gray-400 mb-3 leading-relaxed text-sm">
@@ -167,7 +167,7 @@ export function Footer() {
                   <div className="w-3 h-5 bg-forest-950 rounded-full" />
                 </div>
                 <span className="text-2xl font-extrabold text-white tracking-tight">
-                  beam
+                  Obeam
                 </span>
               </a>
               <p className="text-gray-400 mb-2 leading-relaxed text-sm">
@@ -248,7 +248,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex flex-col md:flex-row gap-3 text-xs text-gray-500">
-            <p>© 2025 Beam Financial Technologies. Built for Africa.</p>
+            <p>© 2025 Obeam. Built for Africa.</p>
             <span className="hidden md:inline">•</span>
             <p className="text-gold-400">Licensed & Partnered Financial Institutions</p>
           </div>

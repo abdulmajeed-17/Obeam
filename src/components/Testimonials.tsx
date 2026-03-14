@@ -5,7 +5,7 @@ const testimonials = [
 {
   id: 1,
   content:
-  "Beam has completely transformed how we handle our cross-border payments. What used to take 3-4 days now happens in hours. It's magic.",
+  "Obeam has completely transformed how we handle our cross-border payments. What used to take 3-4 days now happens in hours. It's magic.",
   author: 'Chidi Okeke',
   role: 'CEO, ImportCo Nigeria',
   company: 'ImportCo',
@@ -81,7 +81,7 @@ export function Testimonials() {
             }}
             className="text-lg text-gray-600">
 
-            Join thousands of businesses moving faster with Beam.
+            Join thousands of businesses moving faster with Obeam.
           </motion.p>
         </div>
 

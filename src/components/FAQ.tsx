@@ -15,7 +15,7 @@ const faqs = [
 {
   question: 'Is my money safe?',
   answer:
-  'Absolutely. Beam is fully licensed and regulated by the CBN. We use bank-grade encryption to protect your data and funds at all times, and your funds are held in safeguarded accounts.'
+  'Absolutely. Obeam is fully licensed and regulated. We use bank-grade encryption to protect your data and funds at all times, and your funds are held in safeguarded accounts.'
 },
 {
   question: 'What is the minimum transfer amount?',

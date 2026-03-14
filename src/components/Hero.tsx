@@ -158,7 +158,8 @@ export function Hero() {
                 </span>
               </motion.a>
 
-              <motion.button
+              <motion.a
+                href="#how-it-works"
                 whileHover={{
                   scale: 1.05,
                   backgroundColor: 'rgba(255, 255, 255, 0.8)'
@@ -169,7 +170,7 @@ export function Hero() {
                 className="touch-target bg-white/50 backdrop-blur-sm border border-gray-200 text-forest-900 font-bold py-3.5 px-6 sm:py-4 sm:px-8 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md text-sm sm:text-base">
                 <PlayCircle size={20} />
                 See how it works
-              </motion.button>
+              </motion.a>
             </motion.div>
 
             {/* Trust stack — only 3 in hero. Centred on mobile so third pill isn’t cut off. */}
@@ -179,7 +180,7 @@ export function Hero() {
               transition={{ delay: 0.7, duration: 0.4 }}
               className="mt-6 sm:mt-8 lg:mt-10 w-full hidden sm:flex flex-wrap items-center justify-center xl:justify-start gap-2 sm:gap-3"
             >
-              {['24hr settlement', 'Transparent FX', 'CBN licensed'].map((pill) => (
+              {['24hr settlement', 'Transparent FX', 'Licensed'].map((pill) => (
                 <span
                   key={pill}
                   className="inline-flex items-center px-2.5 py-1 rounded-full bg-forest-900/5 text-forest-800 text-[11px] sm:text-xs md:text-sm font-medium border border-forest-900/10 whitespace-nowrap"

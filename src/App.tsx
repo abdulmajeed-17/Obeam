@@ -109,6 +109,7 @@ export function App() {
         }
         return;
       }
+      if (href.startsWith('#')) return; // allow default for in-page anchors (e.g. #how-it-works, #pricing)
 
       e.preventDefault();
     };

@@ -152,13 +152,13 @@ export function Pricing() {
                     Monthly Fees
                   </span>
                   <span className="font-bold text-forest-900 bg-gray-50 px-3 py-1 rounded-lg">
-                    ₦ 0
+                    Free
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 font-medium">Setup Fees</span>
                   <span className="font-bold text-forest-900 bg-gray-50 px-3 py-1 rounded-lg">
-                    ₦ 0
+                    Free
                   </span>
                 </div>
               </div>
@@ -173,7 +173,7 @@ export function Pricing() {
                 <div className="space-y-4 relative z-10">
                   <div>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="font-bold text-white">Beam</span>
+                      <span className="font-bold text-white">Obeam</span>
                       <span className="text-gold-400 font-bold">~ 2%</span>
                     </div>
                     <div className="h-2 bg-white/10 rounded-full overflow-hidden">
